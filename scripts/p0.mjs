@@ -14,6 +14,12 @@ import {
   FPS,
   DURATION,
 } from "../p0/scene.mjs";
+import {
+  source as guiSource,
+  layout,
+  anchors,
+  theme as chromeTheme,
+} from "../adapters/turbowarp/layout.mjs";
 const out = root + "/artifacts";
 await mkdir(out, { recursive: true });
 const build = JSON.parse(
@@ -103,6 +109,14 @@ try {
     repository: "https://github.com/TurboWarp/scratch-blocks",
     commit: "7c58de666658df1bb447d010132aa3914c10f41e",
   };
+  assets.editor = {
+    source: guiSource,
+    layout,
+    anchors,
+    theme: chromeTheme,
+    locale: "zh-cn",
+  };
+  report.editor = assets.editor;
   report.validation = assets.validation;
   await writeFile(out + "/manifest.json", JSON.stringify(assets, null, 2));
   await writeFile(out + "/theme.css", assets.theme);
@@ -135,6 +149,7 @@ try {
   );
   if (report.playerHasBlockly) throw Error("Blockly leaked into player");
   for (const [t, name, gallery] of [
+    [0, "initial", false],
     [1.2, "drag-hat", false],
     [3.2, "drag-move", false],
     [4.2, "connected10", false],

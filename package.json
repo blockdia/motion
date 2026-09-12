@@ -6,7 +6,10 @@
     "p0": "node scripts/p0.mjs",
     "preview": "node scripts/serve.mjs",
     "test": "node --test tests/*.test.mjs",
-    "p0:bootstrap": "node scripts/bootstrap.mjs"
+    "p0:bootstrap": "node scripts/bootstrap.mjs",
+    "p1a": "node scripts/p1a.mjs",
+    "p1a:reference:bootstrap": "node scripts/bootstrap-reference.mjs",
+    "p1a:reference": "node scripts/reference.mjs"
   },
   "engines": {
     "node": ">=22"

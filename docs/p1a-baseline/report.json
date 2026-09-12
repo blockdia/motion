@@ -1,0 +1,199 @@
+{
+  "environment": {
+    "node": "v24.18.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "chromium": "153.0.8010.36"
+  },
+  "width": 1280,
+  "height": 720,
+  "fps": 30,
+  "duration": 7,
+  "frameCount": 210,
+  "sourceBuild": {
+    "commit": "7c58de666658df1bb447d010132aa3914c10f41e",
+    "files": {
+      "blockly_compressed_vertical.js": "db3e5c641e10e1332be0e618499dfdab5a57a036057404007e38a7425df28b12",
+      "blocks_compressed.js": "f651fa9d00634a8bd1e1fd78741713f43bcb333b42325c79d3ab789d08815443",
+      "blocks_compressed_vertical.js": "c28275d2c884d3c6a4acff1f9035324eaeac469d02327527a0e1cae390a3d28d",
+      "msg/messages.js": "13c2c78be7d4399af59f56b3e70c65d029bcf5fc62b4caa3244ae5909ab6d7c0",
+      "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
+    }
+  },
+  "browserSampledPeakRssBytes": 1100873728,
+  "workspaceDisposed": true,
+  "preparationMs": 914.483708,
+  "editor": {
+    "source": {
+      "repository": "https://github.com/TurboWarp/scratch-gui",
+      "commit": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff"
+    },
+    "layout": {
+      "width": 1280,
+      "height": 720,
+      "menu": {
+        "x": 0,
+        "y": 0,
+        "width": 1280,
+        "height": 48
+      },
+      "tabs": {
+        "x": 0,
+        "y": 48,
+        "width": 782,
+        "height": 44
+      },
+      "categories": {
+        "x": 1,
+        "y": 93,
+        "width": 60,
+        "height": 537
+      },
+      "toolbox": {
+        "x": 61,
+        "y": 93,
+        "width": 250,
+        "height": 590
+      },
+      "workspace": {
+        "x": 311,
+        "y": 93,
+        "width": 470,
+        "height": 589
+      },
+      "editor": {
+        "x": 61,
+        "y": 93,
+        "width": 720,
+        "height": 589
+      },
+      "stage": {
+        "x": 790,
+        "y": 92,
+        "width": 482,
+        "height": 362
+      },
+      "sprites": {
+        "x": 790,
+        "y": 462,
+        "width": 402,
+        "height": 258
+      },
+      "backdrop": {
+        "x": 1200,
+        "y": 462,
+        "width": 72,
+        "height": 258
+      },
+      "blockScale": 0.675
+    },
+    "anchors": {
+      "workspace": {
+        "main": {
+          "x": 430,
+          "y": 190
+        }
+      },
+      "toolbox": {
+        "hat": {
+          "x": 69,
+          "y": 138
+        },
+        "move10": {
+          "x": 69,
+          "y": 238
+        }
+      },
+      "ui": {
+        "file-menu": {
+          "x": 150,
+          "y": 24
+        },
+        "code-tab": {
+          "x": 48,
+          "y": 73
+        },
+        "green-flag": {
+          "x": 808,
+          "y": 70
+        }
+      }
+    },
+    "theme": {
+      "accent": "#ff4c4c",
+      "background": "#e5f0ff",
+      "panel": "#ffffff",
+      "tertiary": "#d9e3f2",
+      "toolbox": "#f9f9f9",
+      "text": "#575e75",
+      "border": "#c7c7c7",
+      "scrollbar": "#cccccc",
+      "grid": "#d9d9d9"
+    },
+    "locale": "zh-cn"
+  },
+  "validation": {
+    "connected": true,
+    "fieldValue": "20",
+    "invalidConnectionRejected": true
+  },
+  "keyframeComparison": [
+    {
+      "name": "initial",
+      "meanChannelError": 0.2351316550925926,
+      "changedPixelRatio": 0.003286675347222222
+    },
+    {
+      "name": "drag-hat",
+      "meanChannelError": 0.24848813657407406,
+      "changedPixelRatio": 0.0036263020833333334
+    },
+    {
+      "name": "drag-move",
+      "meanChannelError": 0.27148256655092595,
+      "changedPixelRatio": 0.003923611111111111
+    },
+    {
+      "name": "connected10",
+      "meanChannelError": 0.2683253761574074,
+      "changedPixelRatio": 0.003917100694444444
+    },
+    {
+      "name": "connected20",
+      "meanChannelError": 0.26989366319444447,
+      "changedPixelRatio": 0.003934461805555556
+    },
+    {
+      "name": "gallery",
+      "meanChannelError": 0.5115190972222222,
+      "changedPixelRatio": 0.007344835069444444
+    }
+  ],
+  "playerHasBlockly": false,
+  "encoderFlushMs": 34.753875000002154,
+  "encoderPeakRssBytes": 350142464,
+  "encoderCpuSeconds": 1.83,
+  "exportWallMs": 59360.344084000004,
+  "compositionMs": 59302.25041000002,
+  "pipeAndBackpressureMs": 19.616254999985813,
+  "nodePeakRssBytes": 689684480,
+  "processMaxRssBytes": 689848320,
+  "videoProbe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "width": 1280,
+        "height": 720,
+        "r_frame_rate": "30/1",
+        "duration": "7.000000",
+        "nb_read_frames": "210"
+      }
+    ]
+  },
+  "totalMs": 62720.825625,
+  "referenceCommit": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",
+  "layoutComparison": "all measured region edges within 1px"
+}

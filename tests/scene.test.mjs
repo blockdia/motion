@@ -36,8 +36,8 @@ test("join atomically replaces the two roots and preserves connection position",
   assert.equal(before.length, 2);
   assert.equal(after.length, 1);
   assert.equal(after[0].asset, "stack10");
-  assert.ok(Math.abs(before[1].x - 445) < 1e-5);
-  assert.ok(Math.abs(before[1].y - 250) < 1e-5);
+  assert.ok(Math.abs(before[1].x - 430) < 1e-5);
+  assert.ok(Math.abs(before[1].y - 230.5) < 1e-5);
   assert.equal(evaluate(5.4, assets).nodes[0].asset, "stack20");
   assert.equal(evaluate(7, assets).nodes.length, 1);
 });
@@ -48,4 +48,22 @@ test("renderer rejects missing visual assets and clips toolbox/workspace separat
   const incomplete = structuredClone(assets);
   delete incomplete.resources.stack20;
   assert.throws(() => frameSvg(6, incomplete));
+});
+test("scaled layout preserves toolbox origins and field targeting", () => {
+  const hat = evaluate(0.5, assets).nodes[0];
+  const move = evaluate(2.5, assets).nodes.find((n) => n.dragging);
+  assert.deepEqual({ x: hat.x, y: hat.y }, { x: 69, y: 138 });
+  assert.deepEqual({ x: move.x, y: move.y }, { x: 69, y: 238 });
+  const editing = evaluate(5, assets);
+  assert.equal(editing.typing, true);
+  assert.deepEqual(editing.cursor, {
+    x: 430 + 45 * 0.675,
+    y: 190 + 80 * 0.675,
+  });
+  const frame = frameSvg(5, assets);
+  assert.match(frame, /translate\(430 190\) scale\(0.675\)/);
+  assert.match(
+    frame,
+    /<clipPath id="workspace"><rect x="311" y="93" width="470" height="589"\/>/,
+  );
 });
