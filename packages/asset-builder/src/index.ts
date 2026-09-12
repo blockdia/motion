@@ -14,12 +14,7 @@ import {
   type TargetCatalog,
   type ToolboxEntry,
 } from '@blockdia-motion/core';
-import {
-  blocksCommit,
-  guiCommit,
-  entryAliases,
-  resolveField,
-} from '@blockdia-motion/adapter-turbowarp';
+import { blocksCommit, guiCommit } from '@blockdia-motion/adapter-turbowarp';
 const hash = (data: string | Buffer) => createHash('sha256').update(data).digest('hex');
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -167,7 +162,6 @@ export async function createAdapter(options: {
         targetId = id;
         await page.evaluate((id) => (window as any).selectPreparationTarget(id), id);
       },
-      field: resolveField,
       prepare: (def: BlockDefinition, step: string) => prepareResource(def, step),
       prepareInput: (
         def: BlockDefinition,
@@ -228,13 +222,6 @@ export async function createAdapter(options: {
         const key = occurrence === 1 ? identity : `${identity}.${occurrence}`;
         const asset = `catalog-${target.id}-${i}`;
         manifest.resources[asset] = e.resource;
-        const aliases = Object.entries(entryAliases)
-          .filter(
-            ([, opcode]) =>
-              opcode === e.definition.opcode &&
-              extracted.entries.filter((x) => x.definition.opcode === opcode).length === 1,
-          )
-          .map(([key]) => key);
         const mutation = descendants(e.definition).some((b) => b.mutation);
         const declared = new Set(
           options.project.targets
@@ -251,7 +238,6 @@ export async function createAdapter(options: {
             : undefined;
         catalog.toolbox.push({
           key,
-          aliases,
           category: e.category,
           definition: e.definition,
           metadata: e.metadata,

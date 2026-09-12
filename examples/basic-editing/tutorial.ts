@@ -26,17 +26,17 @@ export default defineTutorial({
     ]);
     return scene.sequence(
       scene.wait(0.3),
-      scene.dragFromToolbox('events.whenFlagClicked', {
+      scene.dragFromToolbox('events.event_whenflagclicked.4758c63ad4a847ba', {
         id: start.id,
         to: scene.workspace.slot('main'),
         duration: 1.1,
       }),
-      scene.dragFromToolbox('motion.moveSteps', {
+      scene.dragFromToolbox('motion.motion_movesteps.a5812bf398461387', {
         id: move.id,
         to: start.connection('next'),
         duration: 1.1,
       }),
-      scene.type(move.field('steps'), '20', { duration: 0.7 }),
+      scene.type(scene.ref('move.STEPS.shadow').field('NUM'), '20', { duration: 0.7 }),
       scene.parallel(
         scene.paste(note, {
           to: scene.workspace.slot('secondary'),

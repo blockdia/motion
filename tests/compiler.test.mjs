@@ -7,8 +7,7 @@ import {
   defaultProject,
 } from '../packages/authoring/dist/index.js';
 import { evaluate, frameCount, assertResources, descendants } from '../packages/core/dist/index.js';
-import { resolveField } from '../packages/adapter-turbowarp/dist/index.js';
-import { frameSvg } from '../packages/renderer-browser/dist/index.js';
+import { frameSvg, mountPlayer } from '../packages/renderer-browser/dist/index.js';
 const spec = (steps) => ({
   schemaVersion: 1,
   adapter: 'turbowarp',
@@ -27,7 +26,7 @@ const number = (id, value = '10') => ({
 const move = (id) => ({
   id,
   opcode: 'motion_movesteps',
-  inputs: { STEPS: { shadow: number(id + '.STEPS') } },
+  inputs: { STEPS: { shadow: number(id + '.STEPS.shadow') } },
 });
 const hat = (id) => ({ id, opcode: 'event_whenflagclicked' });
 // Deliberate geometry-only test adapter. Real Blockly legality is covered separately.
@@ -52,11 +51,6 @@ function mockAdapter() {
       backdrop: { x: 1200, y: 462, width: 72, height: 258 },
     },
     slots: { main: { x: 430, y: 190 }, secondary: { x: 450, y: 365 } },
-    categories: [
-      { key: 'motion', label: '运动', y: 109 },
-      { key: 'events', label: '事件', y: 256 },
-    ],
-    toolbox: [],
     resources: {},
   };
   const prepare = async (def) => {
@@ -137,8 +131,11 @@ function mockAdapter() {
     manifest.project.targets.map((t) => [
       t.id,
       {
-        categories: manifest.categories,
-        toolbox: manifest.toolbox,
+        categories: [
+          { key: 'motion', label: '运动', y: 109 },
+          { key: 'events', label: '事件', y: 256 },
+        ],
+        toolbox: [],
         contentHeight: 1800,
         decorations: [],
         xml: '',
@@ -150,15 +147,14 @@ function mockAdapter() {
     selectTarget: async () => {},
     prepare,
     prepareInput,
-    field: resolveField,
   };
   return adapter;
 }
 async function setup() {
   const a = mockAdapter();
   for (const [key, category, definition, y] of [
-    ['events.whenFlagClicked', 'events', hat('entry'), 138],
-    ['motion.moveSteps', 'motion', move('entry'), 900],
+    ['events.event_whenflagclicked.4758c63ad4a847ba', 'events', hat('entry'), 138],
+    ['motion.motion_movesteps.a5812bf398461387', 'motion', move('entry'), 900],
   ])
     a.manifest.targets.sprite.toolbox.push({
       key,
@@ -195,21 +191,21 @@ test('semantic drag reveals offscreen source, preserves toolbox, joins once, sub
   const tutorial = spec([
     {
       op: 'dragFromToolbox',
-      entry: 'events.whenFlagClicked',
+      entry: 'events.event_whenflagclicked.4758c63ad4a847ba',
       id: 'hat',
       to: slot('main'),
       duration: 0.5,
     },
     {
       op: 'dragFromToolbox',
-      entry: 'motion.moveSteps',
+      entry: 'motion.motion_movesteps.a5812bf398461387',
       id: 'move',
       to: { kind: 'connection', id: 'hat', name: 'next' },
       duration: 0.5,
     },
     {
       op: 'type',
-      target: { kind: 'field', id: 'move', name: 'steps' },
+      target: { kind: 'field', id: 'move.STEPS.shadow', name: 'NUM' },
       value: '2000',
       duration: 0.5,
     },
@@ -225,8 +221,8 @@ test('semantic drag reveals offscreen source, preserves toolbox, joins once, sub
   assert.equal(after.nodes.length, 1);
   const final = evaluate(result.duration, result);
   assert.equal(final.nodes.length, 1);
-  assert.equal(result.finalBlocks[0].next.id, 'move');
-  assert.equal(result.finalBlocks[0].next.inputs.STEPS.shadow.fields.NUM, '2000');
+  assert.equal(result.finalTargets.sprite[0].next.id, 'move');
+  assert.equal(result.finalTargets.sprite[0].next.inputs.STEPS.shadow.fields.NUM, '2000');
   assert.equal(result.manifest.targets.sprite.toolbox.length, 2);
   assert.equal(
     result.manifest.targets.sprite.toolbox[1].definition.inputs.STEPS.shadow.fields.NUM,
@@ -234,7 +230,7 @@ test('semantic drag reveals offscreen source, preserves toolbox, joins once, sub
   );
   const roots = result.manifest.resources[final.nodes[0].asset].anchors;
   assert.deepEqual(roots.hat.connections.next, roots.move.connections.previous);
-  assert.equal(roots['move.STEPS'].fields.NUM.width, 40);
+  assert.equal(roots['move.STEPS.shadow'].fields.NUM.width, 40);
   assert.match(frameSvg(result.duration, result), /clip-path="url\(#motion-workspace\)"/);
   assert.deepEqual(await compile(JSON.parse(JSON.stringify(tutorial)), a), result);
 });
@@ -283,7 +279,7 @@ test('parallel branches merge independent roots and use maximum duration', async
   assert.equal(result.duration, 0.6);
   assert.equal(evaluate(0.5, result).nodes.length, 2);
   assert.deepEqual(
-    result.finalBlocks.map((b) => b.id),
+    result.finalTargets.sprite.map((b) => b.id),
     ['a', 'b'],
   );
 });
@@ -376,15 +372,15 @@ test('reveal is idempotent once visible and input schema rejects cycles/callback
   const a = await setup();
   const once = await compile(
     spec([
-      { op: 'reveal', entry: 'motion.moveSteps' },
+      { op: 'reveal', entry: 'motion.motion_movesteps.a5812bf398461387' },
       { op: 'wait', duration: 0.1 },
     ]),
     a,
   );
   const twice = await compile(
     spec([
-      { op: 'reveal', entry: 'motion.moveSteps' },
-      { op: 'reveal', entry: 'motion.moveSteps' },
+      { op: 'reveal', entry: 'motion.motion_movesteps.a5812bf398461387' },
+      { op: 'reveal', entry: 'motion.motion_movesteps.a5812bf398461387' },
       { op: 'wait', duration: 0.1 },
     ]),
     a,
@@ -402,7 +398,7 @@ test('continuous toolbox reveal skips category navigation for an already visible
   const before = await compile(spec([{ op: 'wait', duration: 0.1 }]), adapter);
   const after = await compile(
     spec([
-      { op: 'reveal', entry: 'events.whenFlagClicked' },
+      { op: 'reveal', entry: 'events.event_whenflagclicked.4758c63ad4a847ba' },
       { op: 'wait', duration: 0.1 },
     ]),
     adapter,
@@ -527,7 +523,7 @@ test('manual paste appears atomically at the step start, including connected and
     assert.ok(state.nodes.every((n) => n.opacity === 1 && !n.dragging));
   }
   assert.equal(result.tracks.filter((t) => t.kind === 'node').length, 0);
-  assert.equal(result.finalBlocks.find((b) => b.id === 'h').next.id, 'm');
+  assert.equal(result.finalTargets.sprite.find((b) => b.id === 'h').next.id, 'm');
 });
 test('typing uses measured intermediate block resources, parks cursor, then atomically commits', async () => {
   const result = await compile(
@@ -535,7 +531,7 @@ test('typing uses measured intermediate block resources, parks cursor, then atom
       { op: 'create', blocks: [move('m')], to: slot('main'), duration: 0.1 },
       {
         op: 'type',
-        target: { kind: 'field', id: 'm', name: 'steps' },
+        target: { kind: 'field', id: 'm.STEPS.shadow', name: 'NUM' },
         value: '20000000',
         duration: 0.8,
       },
@@ -582,7 +578,7 @@ test('typing uses measured intermediate block resources, parks cursor, then atom
   }
   const final = evaluate(input.end, result);
   assert.equal(final.input, null);
-  assert.equal(result.finalBlocks[0].inputs.STEPS.shadow.fields.NUM, '20000000');
+  assert.equal(result.finalTargets.sprite[0].inputs.STEPS.shadow.fields.NUM, '20000000');
   const broken = structuredClone(result);
   delete broken.manifest.resources[input.frames[2].asset];
   assert.throws(() => assertResources(broken), /RESOURCE/);
@@ -635,4 +631,77 @@ test('target list follows timeline selection, escapes names, scrolls determinist
   const svg = frameSvg(0, empty);
   assert.equal((svg.match(/data-target-id=/g) ?? []).length, 1);
   assert.match(svg, /data-scroll="0"/);
+});
+
+test('only catalog keys and actual fields are accepted; compiled output is target-scoped', async () => {
+  const adapter = await setup();
+  for (const entry of [
+    'events.whenFlagClicked',
+    'motion.moveSteps',
+    'looks.say',
+    'motion_movesteps',
+  ]) {
+    await assert.rejects(
+      () => compile(spec([{ op: 'dragFromToolbox', entry, id: 'm', to: slot('main') }]), adapter),
+      /TOOLBOX_ENTRY/,
+    );
+  }
+  await assert.rejects(
+    () =>
+      compile(
+        spec([
+          { op: 'create', blocks: [move('m')], to: slot('main') },
+          { op: 'type', target: { kind: 'field', id: 'm', name: 'steps' }, value: '20' },
+        ]),
+        adapter,
+      ),
+    /FIELD/,
+  );
+  const scene = await compile(
+    spec([{ op: 'create', blocks: [move('m')], to: slot('main') }]),
+    adapter,
+  );
+  assert.equal(Object.hasOwn(scene, 'finalBlocks'), false);
+  assert.deepEqual(Object.keys(scene.finalTargets), ['stage', 'sprite']);
+});
+
+test('playback tolerates a first RAF timestamp preceding play without moving backwards', async () => {
+  const scene = await compile(spec([{ op: 'wait', duration: 2 }]), await setup());
+  const originalRequest = globalThis.requestAnimationFrame;
+  const originalCancel = globalThis.cancelAnimationFrame;
+  let callback;
+  globalThis.requestAnimationFrame = (next) => {
+    callback = next;
+    return 1;
+  };
+  globalThis.cancelAnimationFrame = () => {};
+  const elements = new Map();
+  const host = {
+    innerHTML: '',
+    replaceChildren() {},
+    querySelector(selector) {
+      if (!elements.has(selector))
+        elements.set(selector, { addEventListener() {}, removeEventListener() {} });
+      return elements.get(selector);
+    },
+  };
+  let player;
+  try {
+    player = mountPlayer(host, scene);
+    player.seek(0.5);
+    const earlierFrame = performance.now() - 16;
+    player.play();
+    callback(earlierFrame);
+    assert.equal(player.time, 0.5);
+    assert.equal(player.playing, true);
+    callback(performance.now() + 3000);
+    assert.equal(player.time, 2);
+    assert.equal(player.playing, false);
+  } finally {
+    player?.dispose();
+    if (originalRequest) globalThis.requestAnimationFrame = originalRequest;
+    else delete globalThis.requestAnimationFrame;
+    if (originalCancel) globalThis.cancelAnimationFrame = originalCancel;
+    else delete globalThis.cancelAnimationFrame;
+  }
 });

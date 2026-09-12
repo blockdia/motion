@@ -19,7 +19,7 @@
         },
         {
           "op": "dragFromToolbox",
-          "entry": "events.whenFlagClicked",
+          "entry": "events.event_whenflagclicked.4758c63ad4a847ba",
           "id": "start",
           "to": {
             "kind": "workspaceSlot",
@@ -29,7 +29,7 @@
         },
         {
           "op": "dragFromToolbox",
-          "entry": "motion.moveSteps",
+          "entry": "motion.motion_movesteps.a5812bf398461387",
           "id": "move",
           "to": {
             "kind": "connection",
@@ -42,8 +42,8 @@
           "op": "type",
           "target": {
             "kind": "field",
-            "id": "move",
-            "name": "steps"
+            "id": "move.STEPS.shadow",
+            "name": "NUM"
           },
           "value": "20",
           "duration": 0.7

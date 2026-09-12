@@ -1,5 +1,5 @@
 {
-  "preparationMs": 3644.0171250000003,
+  "preparationMs": 3691.633292,
   "jsonEquivalent": true,
   "workspaceDisposed": true,
   "source": {
@@ -93,9 +93,9 @@
     "encodedDuration": 6.4,
     "width": 1280,
     "height": 720,
-    "compositionMs": 91706.65837600005,
-    "exportMs": 91775.904542,
-    "nodePeakRssBytes": 349618176,
+    "compositionMs": 90182.78599999998,
+    "exportMs": 90252.491375,
+    "nodePeakRssBytes": 333873152,
     "source": {
       "blocks": "7c58de666658df1bb447d010132aa3914c10f41e",
       "gui": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",
@@ -125,5 +125,5 @@
     "duration": "6.400000",
     "nb_read_frames": "192"
   },
-  "totalMs": 105414.570792
+  "totalMs": 103992.75099999999
 }

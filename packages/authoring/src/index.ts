@@ -73,9 +73,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
   };
   const scale = manifest.layout.blockScale;
   function entry(c: Context, key: string, path: string): ToolboxEntry {
-    const found = catalogFor(c.targetId).toolbox.find(
-      (e) => e.key === key || e.aliases?.includes(key),
-    );
+    const found = catalogFor(c.targetId).toolbox.find((e) => e.key === key);
     if (!found) fail('TOOLBOX_ENTRY', path, `Unknown entry ${key}`);
     return found;
   }
@@ -385,7 +383,9 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     if (s.op === 'type') {
       const { root, block } = locate(c, s.target.id, path);
       touch(c, root);
-      const field = adapter.field(block, s.target.name, path);
+      if (!Object.hasOwn(block.fields ?? {}, s.target.name))
+        fail('FIELD', path, `Unknown field ${block.id}.${s.target.name}`);
+      const field = { block, name: s.target.name };
       const a = asset(root.node.asset, path).anchors[field.block.id]?.fields[field.name];
       if (!a) fail('FIELD', path, `Missing field anchor ${s.target.id}.${s.target.name}`);
       const def = structuredClone(root.block);
@@ -580,7 +580,6 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     initial,
     events: context.events.sort((a, b) => a.time - b.time),
     tracks: context.tracks,
-    finalBlocks: [...context.roots.values()].map((r) => r.block),
     finalTargets: Object.fromEntries(
       spec.project.targets.map((target) => [
         target.id,

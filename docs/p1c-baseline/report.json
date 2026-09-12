@@ -20,7 +20,7 @@
       "protocol": 3
     }
   },
-  "preparationMs": 6654.116458,
+  "preparationMs": 6576.040875,
   "targets": {
     "stage": {
       "categories": 9,
@@ -107,9 +107,9 @@
     "encodedDuration": 4.6,
     "width": 1280,
     "height": 720,
-    "compositionMs": 58611.25641899996,
-    "exportMs": 58683.181791,
-    "nodePeakRssBytes": 522862592,
+    "compositionMs": 56186.02404499999,
+    "exportMs": 56252.50475000001,
+    "nodePeakRssBytes": 732102656,
     "source": {
       "blocks": "7c58de666658df1bb447d010132aa3914c10f41e",
       "gui": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",

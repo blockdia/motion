@@ -34,7 +34,7 @@ pnpm motion export artifacts/p1b/scene.json artifacts/p1b/tutorial.mp4 30
 | ------------------- | ---------------------------------------------------------------------------------- |
 | `core`              | `TutorialSpec`、积木图、manifest、场景事件/轨道、诊断和纯 `evaluate(t, compiled)`  |
 | `authoring`         | 严格 JSON 校验、TypeScript builder、状态推导、目标解析、并行冲突检查               |
-| `adapter-turbowarp` | 固定版本与兼容语义别名；目录定义来自真实编辑器                                     |
+| `adapter-turbowarp` | 固定源码版本；目录定义来自真实编辑器                                               |
 | `asset-builder`     | 校验源码/字体、启动临时 Blockly、验证定义/连接/字段、提取 SVG/锚点、释放 workspace |
 | `renderer-browser`  | 共享 SVG 呈现与浏览器播放控制；样式和 SVG ID 按播放器隔离                          |
 | `renderer-video`    | 使用同一 SVG 呈现，resvg 栅格化、FFmpeg 流式编码与临时文件清理                     |
@@ -63,15 +63,15 @@ const tutorial = defineTutorial({
   build(scene) {
     const start = scene.ref('start');
     return scene.sequence(
-      scene.dragFromToolbox('events.whenFlagClicked', {
+      scene.dragFromToolbox('events.event_whenflagclicked.4758c63ad4a847ba', {
         id: start.id,
         to: scene.workspace.slot('main'),
       }),
-      scene.dragFromToolbox('motion.moveSteps', {
+      scene.dragFromToolbox('motion.motion_movesteps.a5812bf398461387', {
         id: 'move',
         to: start.connection('next'),
       }),
-      scene.type(scene.ref('move').field('steps'), '20', { duration: 0.8 }),
+      scene.type(scene.ref('move.STEPS.shadow').field('NUM'), '20', { duration: 0.8 }),
     );
   },
 });
@@ -87,20 +87,20 @@ const tutorial = defineTutorial({
 
 ## P1b 支持范围
 
-| 能力         | 当前契约                                                                                                                |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| 画面         | P1a 的 1280×720、zh-CN、light 固定布局                                                                                  |
-| Toolbox 条目 | 固定编辑器的各 target 完整核心目录；三条旧键保留为别名                                                                  |
-| 手动 opcode  | 从 Blockly 定义/实例获取，无 opcode 白名单；未支持的 mutation 明确报错                                                  |
-| 手动输入     | 实际输入名；每槽显式一个 shadow 或 block，Blockly 检查连接类型                                                          |
-| 放置槽       | `main`、`secondary`、`lower`；多个手动根按测量高度纵向排布                                                              |
-| 连接         | 将根栈的 previous 接到已有积木的空 next；可直接拖出连接或单独 `connect`                                                 |
-| 移动         | 移动完整根栈；移动已连接子积木需要 P2 拆分，当前报错                                                                    |
-| 字段         | `move.field('steps')` / `say.field('message')`；或实际字段名；`type` 仅支持文本输入字段，菜单和颜色编辑报能力诊断       |
-| 创建/粘贴    | 显式定义，在步骤开始时瞬间出现；duration 是插入后的停留时间，不提供淡入选项；多个根仅能放到工作区槽，连接目标只接受单根 |
-| 时间         | sequence / parallel / wait、正时长、两种缓动；任意时间直接求值                                                          |
-| 播放         | 播放、暂停、跳转、响应式等比画面、播放器释放                                                                            |
-| 导出         | 同一编译 JSON → 无音轨 MP4，默认 30 fps；fps 为 1–120 的整数                                                            |
+| 能力         | 当前契约                                                                                                                           |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 画面         | P1a 的 1280×720、zh-CN、light 固定布局                                                                                             |
+| Toolbox 条目 | 固定编辑器的各 target 完整核心目录；仅接受目录中的完整稳定键                                                                       |
+| 手动 opcode  | 从 Blockly 定义/实例获取，无 opcode 白名单；未支持的 mutation 明确报错                                                             |
+| 手动输入     | 实际输入名；每槽显式一个 shadow 或 block，Blockly 检查连接类型                                                                     |
+| 放置槽       | `main`、`secondary`、`lower`；多个手动根按测量高度纵向排布                                                                         |
+| 连接         | 将根栈的 previous 接到已有积木的空 next；可直接拖出连接或单独 `connect`                                                            |
+| 移动         | 移动完整根栈；移动已连接子积木需要 P2 拆分，当前报错                                                                               |
+| 字段         | `scene.ref('move.STEPS.shadow').field('NUM')`；必须引用实际子积木 ID 与字段名；`type` 仅支持文本输入字段，菜单和颜色编辑报能力诊断 |
+| 创建/粘贴    | 显式定义，在步骤开始时瞬间出现；duration 是插入后的停留时间，不提供淡入选项；多个根仅能放到工作区槽，连接目标只接受单根            |
+| 时间         | sequence / parallel / wait、正时长、两种缓动；任意时间直接求值                                                                     |
+| 播放         | 播放、暂停、跳转、响应式等比画面、播放器释放                                                                                       |
+| 导出         | 同一编译 JSON → 无音轨 MP4，默认 30 fps；fps 为 1–120 的整数                                                                       |
 
 未知 opcode、字段、输入及未支持操作会给出诊断。完整目录可见不等于所有教程操作都已支持；mutation、交互式嵌套/拆分/删除、变体主题/语言、观众平移/缩放、输入法与菜单编辑继续属于 P2/P3。
 

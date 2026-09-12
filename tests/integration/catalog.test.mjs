@@ -55,8 +55,13 @@ test('complete native catalogs preserve context, definitions, capabilities, stab
     }
     const a = m.targets.sprite,
       b = m.targets['sprite-b'];
+    assert.ok(
+      Object.values(m.targets).every((catalog) =>
+        catalog.toolbox.every((entry) => !Object.hasOwn(entry, 'aliases')),
+      ),
+    );
     assert.ok(!m.targets.stage.toolbox.some((e) => e.definition.opcode === 'motion_movesteps'));
-    const move = a.toolbox.find((e) => e.aliases.includes('motion.moveSteps'));
+    const move = a.toolbox.find((e) => e.definition.opcode === 'motion_movesteps');
     assert.equal(move.definition.inputs.STEPS.shadow.fields.NUM, '10');
     const go = a.toolbox.find((e) => e.definition.opcode === 'motion_gotoxy');
     assert.equal(go.definition.inputs.X.shadow.fields.NUM, '37');

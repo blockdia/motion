@@ -24,8 +24,8 @@ test('native Blockly input geometry and rendered editing states match, with comp
   const adapter = await createAdapter({ project: tutorial.project });
   let compiled;
   try {
-    const entry = adapter.manifest.targets.sprite.toolbox.find((e) =>
-      e.aliases.includes('events.whenFlagClicked'),
+    const entry = adapter.manifest.targets.sprite.toolbox.find(
+      (e) => e.definition.opcode === 'event_whenflagclicked',
     );
     assert.ok(
       entry.position.y +
@@ -44,7 +44,7 @@ test('native Blockly input geometry and rendered editing states match, with comp
           },
           {
             op: 'type',
-            target: { kind: 'field', id: 'move', name: 'steps' },
+            target: { kind: 'field', id: 'value', name: 'NUM' },
             value: '1234567890',
             duration: 1,
           },

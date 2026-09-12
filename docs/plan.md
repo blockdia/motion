@@ -103,20 +103,20 @@ const tutorial = defineTutorial({
     const move = scene.ref('move');
 
     scene.sequence(
-      scene.dragFromToolbox('events.whenFlagClicked', {
+      scene.dragFromToolbox('events.event_whenflagclicked.4758c63ad4a847ba', {
         id: 'start', to: scene.workspace.slot('main'),
       }),
-      scene.dragFromToolbox('motion.moveSteps', {
+      scene.dragFromToolbox('motion.motion_movesteps.a5812bf398461387', {
         id: 'move', to: start.connection('next'),
       }),
-      scene.type(move.field('steps'), '20', { duration: 0.8 }),
+      scene.type(scene.ref('move.STEPS.shadow').field('NUM'), '20', { duration: 0.8 }),
       scene.highlight(move, { duration: 0.5 }),
     );
   },
 });
 ```
 
-`events.whenFlagClicked` 和 `motion.moveSteps` 是 adapter/toolbox 目录注册的稳定条目键，不是显示文本或单纯 opcode。同一种 opcode 可以有多个不同默认参数、输入或 mutation 的条目。拖出操作复制所引用条目的完整定义，无需作者重复填写积木内容；`id` 指定新工作区实例的稳定 ID。引用句柄本身不创建积木，编译器检查使用时实例是否已经存在。
+`events.event_whenflagclicked.4758c63ad4a847ba` 和 `motion.motion_movesteps.a5812bf398461387` 是 adapter/toolbox 目录注册的稳定条目键，不是显示文本或单纯 opcode。同一种 opcode 可以有多个不同默认参数、输入或 mutation 的条目。拖出操作复制所引用条目的完整定义，无需作者重复填写积木内容；`id` 指定新工作区实例的稳定 ID。引用句柄本身不创建积木，编译器检查使用时实例是否已经存在。
 
 `dragFromToolbox` 是包含前置动作的复合操作：解析条目 → 必要时切换分类 → 滚动使条目及抓取锚点可见 → 移动鼠标并拖出 → 放置/连接。已经可见时省略分类切换和滚动。前置动作有确定时长并计入时间线，跳转与视频导出均可还原。条目不存在或不可用时报告错误，不猜测相近积木。超出可视区域的大条目至少保证可抓取区域可见。
 
@@ -172,7 +172,7 @@ scene.sequence(
   "steps": [
     {
       "op": "dragFromToolbox",
-      "entry": "events.whenFlagClicked",
+      "entry": "events.event_whenflagclicked.4758c63ad4a847ba",
       "id": "start",
       "to": { "kind": "workspaceSlot", "name": "main" }
     }
@@ -338,7 +338,7 @@ P1b 已验证通用教程闭环，但 `packages/adapter-turbowarp/src/index.ts` 
 - 分类标签来自对应语言资源或编辑器实际生成结果；分类与条目坐标来自受控布局计算或真实测量。检查 asset-builder 中散落的定位常量，把有意设计的间距/命名放置槽统一交给布局配置，取消按分类写死屏幕坐标的方式。
 - 从目标 Blockly 的实际实例与定义获取字段、输入和连接信息，移除重复维护的 opcode 字段/输入白名单。最终字段提交、连接合法性仍由 Blockly 校验；Motion 继续校验教程结构、引用与操作能力。
 - 区分“目录可发现”“素材可准备”和“教程操作已支持”。未实现的 mutation、字段类型或连接操作给出明确能力诊断，不为扩大目录而假称支持，也不因为缺少三条示例中的映射就拒绝普通积木。
-- 保留固定源码 commit 和必要的语义别名。条目身份不能仅依赖显示文字或 opcode；生成稳定目录键并定义同 opcode 多条目的区分规则。现有公开条目键可作为指向真实条目的别名，不再携带重复的手写积木内容。
+- 保留固定源码 commit。条目身份不能仅依赖显示文字或 opcode；使用生成的完整稳定目录键区分同 opcode 的不同条目，不再保留旧短键和字段映射。
 - 完整 toolbox 不得按教程用到的条目过滤。素材准备覆盖时间线中完整可视区域（包括未被操作的条目），允许虚拟化和缓存，但不能改变内容、顺序或滚动范围；工作区动画变体仍按需求准备。生成结果可缓存或纳入版本管理，但必须提供可复现生成入口、来源元数据与失效规则；不能仅把现有常量搬到 JSON。
 
 验收：

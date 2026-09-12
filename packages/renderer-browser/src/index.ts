@@ -147,7 +147,8 @@ export function mountPlayer(host: HTMLElement, compiled: CompiledScene) {
   }
   function tick(now: number) {
     if (!playing || disposed) return;
-    time = Math.min(compiled.duration, startTime + (now - startClock) / 1000);
+    // RAF timestamps describe the frame start and may precede play() in that frame.
+    time = Math.min(compiled.duration, startTime + Math.max(0, now - startClock) / 1000);
     if (time === compiled.duration) playing = false;
     render();
     if (playing) request = requestAnimationFrame(tick);

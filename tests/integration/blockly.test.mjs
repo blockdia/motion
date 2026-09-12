@@ -80,7 +80,32 @@ test('pinned Blockly compiles independent JSON/TS inputs and rejects invalid edi
       make([{ op: 'create', blocks: [move('literal', 'hello')], to: slot('main') }]),
       adapter,
     );
-    assert.equal(accepted.finalBlocks[0].inputs.STEPS.shadow.fields.NUM, 'hello');
+    assert.equal(accepted.finalTargets.sprite[0].inputs.STEPS.shadow.fields.NUM, 'hello');
+    await assert.rejects(
+      () =>
+        compile(
+          make([
+            {
+              op: 'create',
+              blocks: [
+                {
+                  id: 'say',
+                  opcode: 'looks_say',
+                  inputs: {
+                    MESSAGE: {
+                      shadow: { id: 'say.text', opcode: 'text', fields: { TEXT: 'hello' } },
+                    },
+                  },
+                },
+              ],
+              to: slot('main'),
+            },
+            { op: 'type', target: { kind: 'field', id: 'say', name: 'message' }, value: 'world' },
+          ]),
+          adapter,
+        ),
+      /FIELD/,
+    );
     const joined = await compile(
       make([
         {
@@ -97,7 +122,7 @@ test('pinned Blockly compiles independent JSON/TS inputs and rejects invalid edi
         },
         {
           op: 'type',
-          target: { kind: 'field', id: 'move', name: 'steps' },
+          target: { kind: 'field', id: 'move.n', name: 'NUM' },
           value: '123456',
           duration: 0.3,
         },
@@ -106,7 +131,7 @@ test('pinned Blockly compiles independent JSON/TS inputs and rejects invalid edi
     );
     const node = evaluate(joined.duration, joined).nodes[0],
       anchors = joined.manifest.resources[node.asset].anchors;
-    assert.equal(joined.finalBlocks[0].next.id, 'move');
+    assert.equal(joined.finalTargets.sprite[0].next.id, 'move');
     assert.deepEqual(anchors.hat.connections.next, anchors.move.connections.previous);
     assert.equal(anchors['move.n'].fields.NUM.value, '123456');
     const pasted = await compile(

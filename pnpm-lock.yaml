@@ -27,11 +27,7 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  packages/adapter-turbowarp:
-    dependencies:
-      '@blockdia-motion/core':
-        specifier: workspace:*
-        version: link:../core
+  packages/adapter-turbowarp: {}
 
   packages/asset-builder:
     dependencies:

@@ -166,7 +166,6 @@ export interface ToolboxEntry {
   key: string;
   category: string;
   definition: BlockDefinition;
-  aliases?: string[];
   capability?: { prepare: boolean; drag: boolean; reason?: string };
   metadata?: Record<
     string,
@@ -285,7 +284,6 @@ export interface CompiledScene {
   initial: SceneState;
   events: Event[];
   tracks: Track[];
-  finalBlocks: BlockDefinition[];
   finalTargets: Record<string, BlockDefinition[]>;
 }
 export interface Snapshot extends SceneState {
@@ -323,11 +321,6 @@ export interface PreparationAdapter {
     editing: { id: string; name: string; text: string },
     step: string,
   ): Promise<string>;
-  field(
-    block: BlockDefinition,
-    name: string,
-    step: string,
-  ): { block: BlockDefinition; name: string };
 }
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
 export function evaluate(time: number, scene: CompiledScene): Snapshot {
