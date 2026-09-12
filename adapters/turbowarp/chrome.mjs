@@ -6,7 +6,10 @@ const text = (x, y, value, size = 12, fill = c.text) =>
   `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}">${value}</text>`;
 const input = (x, y, width, height = 32) =>
   `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${height / 2}" fill="white" stroke="#d4d4d4"/>`;
-export function chrome() {
+export function chrome({
+  toolboxHeadings = true,
+  availableCategories = null,
+} = {}) {
   const categories = [
     ["运动", "#4c97ff"],
     ["外观", "#9966ff"],
@@ -40,14 +43,16 @@ export function chrome() {
     box(l.toolbox, c.toolbox, `stroke="${c.border}"`) +
     box(l.categories, c.panel, `stroke="${c.border}"`) +
     categories
-      .map(
-        ([name, color], i) =>
-          `<circle cx="31" cy="${109 + i * 49}" r="9.5" fill="${color}" stroke="${color}"/>${text(name.length > 2 ? 10 : 21, 132 + i * 49, name, 10.4)}`,
+      .map(([name, color], i) =>
+        availableCategories && !availableCategories.includes(name)
+          ? ""
+          : `<circle cx="31" cy="${109 + i * 49}" r="9.5" fill="${color}" stroke="${color}"/>${text(name.length > 2 ? 10 : 21, 132 + i * 49, name, 10.4)}`,
       )
       .join("") +
     `<rect x="0" y="630" width="62" height="53" fill="${c.accent}"/><rect x="0" y="692" width="781" height="28" rx="7" fill="white" stroke="#d4d4d4"/>${text(378, 710, "书包", 14)}` +
-    text(69, 122, "事件", 12) +
-    text(69, 222, "运动", 12) +
+    (toolboxHeadings
+      ? text(69, 122, "事件", 12) + text(69, 222, "运动", 12)
+      : "") +
     `<rect x="300" y="96" width="6" height="53" rx="3" fill="${c.scrollbar}"/><rect x="774" y="383" width="6" height="289" rx="3" fill="${c.scrollbar}"/><rect x="541" y="675" width="230" height="6" rx="3" fill="${c.scrollbar}"/>` +
     [0, 1, 2]
       .map(

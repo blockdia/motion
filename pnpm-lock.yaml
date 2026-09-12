@@ -8,12 +8,83 @@ importers:
 
   .:
     devDependencies:
+      '@blockdia-motion/authoring':
+        specifier: workspace:*
+        version: link:packages/authoring
       '@resvg/resvg-js':
         specifier: 2.6.2
         version: 2.6.2
+      '@types/node':
+        specifier: ^24.13.4
+        version: 24.13.4
       playwright-core:
         specifier: 1.62.1
         version: 1.62.1
+      prettier:
+        specifier: 3.6.2
+        version: 3.6.2
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
+  packages/adapter-turbowarp:
+    dependencies:
+      '@blockdia-motion/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/asset-builder:
+    dependencies:
+      '@blockdia-motion/adapter-turbowarp':
+        specifier: workspace:*
+        version: link:../adapter-turbowarp
+      '@blockdia-motion/core':
+        specifier: workspace:*
+        version: link:../core
+      playwright-core:
+        specifier: 1.62.1
+        version: 1.62.1
+
+  packages/authoring:
+    dependencies:
+      '@blockdia-motion/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/cli:
+    dependencies:
+      '@blockdia-motion/asset-builder':
+        specifier: workspace:*
+        version: link:../asset-builder
+      '@blockdia-motion/authoring':
+        specifier: workspace:*
+        version: link:../authoring
+      '@blockdia-motion/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blockdia-motion/renderer-video':
+        specifier: workspace:*
+        version: link:../renderer-video
+
+  packages/core: {}
+
+  packages/renderer-browser:
+    dependencies:
+      '@blockdia-motion/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/renderer-video:
+    dependencies:
+      '@blockdia-motion/core':
+        specifier: workspace:*
+        version: link:../core
+      '@blockdia-motion/renderer-browser':
+        specifier: workspace:*
+        version: link:../renderer-browser
+      '@resvg/resvg-js':
+        specifier: 2.6.2
+        version: 2.6.2
 
 packages:
 
@@ -93,10 +164,26 @@ packages:
     resolution: {integrity: sha512-xBaJish5OeGmniDj9cW5PRa/PtmuVU3ziqrbr5xJj901ZDN4TosrVaNZpEiLZAxdfnhAe7uQ7QFWfjPe9d9K2Q==}
     engines: {node: '>= 10'}
 
+  '@types/node@24.13.4':
+    resolution: {integrity: sha512-YJ7EqCstVTzIr0fMr7qul/977en+pQHrfmuKIo6Zr9i75Be21dr3MovcfvGtyvi2HAUrRerWps5sMO9I7WaxDw==}
+
   playwright-core@1.62.1:
     resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
     engines: {node: '>=20'}
     hasBin: true
+
+  prettier@3.6.2:
+    resolution: {integrity: sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==}
+    engines: {node: '>=14'}
+    hasBin: true
+
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  undici-types@7.18.2:
+    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
 snapshots:
 
@@ -151,4 +238,14 @@ snapshots:
       '@resvg/resvg-js-win32-ia32-msvc': 2.6.2
       '@resvg/resvg-js-win32-x64-msvc': 2.6.2
 
+  '@types/node@24.13.4':
+    dependencies:
+      undici-types: 7.18.2
+
   playwright-core@1.62.1: {}
+
+  prettier@3.6.2: {}
+
+  typescript@5.9.3: {}
+
+  undici-types@7.18.2: {}

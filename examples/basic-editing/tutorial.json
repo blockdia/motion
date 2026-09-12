@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "adapter": "turbowarp",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "defaults": {
+    "theme": "light",
+    "locale": "zh-CN"
+  },
+  "steps": [
+    {
+      "op": "sequence",
+      "steps": [
+        {
+          "op": "wait",
+          "duration": 0.3
+        },
+        {
+          "op": "dragFromToolbox",
+          "entry": "events.whenFlagClicked",
+          "id": "start",
+          "to": {
+            "kind": "workspaceSlot",
+            "name": "main"
+          },
+          "duration": 1.1
+        },
+        {
+          "op": "dragFromToolbox",
+          "entry": "motion.moveSteps",
+          "id": "move",
+          "to": {
+            "kind": "connection",
+            "id": "start",
+            "name": "next"
+          },
+          "duration": 1.1
+        },
+        {
+          "op": "type",
+          "target": {
+            "kind": "field",
+            "id": "move",
+            "name": "steps"
+          },
+          "value": "20",
+          "duration": 0.7
+        },
+        {
+          "op": "parallel",
+          "steps": [
+            {
+              "op": "paste",
+              "blocks": [
+                {
+                  "id": "note",
+                  "opcode": "looks_say",
+                  "inputs": {
+                    "MESSAGE": {
+                      "shadow": {
+                        "id": "note.message",
+                        "opcode": "text",
+                        "fields": {
+                          "TEXT": "手动粘贴"
+                        }
+                      }
+                    }
+                  }
+                }
+              ],
+              "to": {
+                "kind": "workspaceSlot",
+                "name": "secondary"
+              },
+              "duration": 0.5
+            },
+            {
+              "op": "wait",
+              "duration": 0.7
+            }
+          ]
+        },
+        {
+          "op": "move",
+          "id": "note",
+          "to": {
+            "kind": "workspaceSlot",
+            "name": "lower"
+          },
+          "duration": 0.6
+        },
+        {
+          "op": "wait",
+          "duration": 0.4
+        }
+      ]
+    }
+  ]
+}

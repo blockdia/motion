@@ -1,0 +1,29 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/authoring"
+    },
+    {
+      "path": "packages/adapter-turbowarp"
+    },
+    {
+      "path": "packages/asset-builder"
+    },
+    {
+      "path": "packages/renderer-browser"
+    },
+    {
+      "path": "packages/renderer-video"
+    },
+    {
+      "path": "packages/cli"
+    },
+    {
+      "path": "examples"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blockdia Motion</title>
+  <style>
+    body {
+      margin: 0;
+      background: #e8ebf2;
+      font-family: 'Motion Sans', sans-serif;
+      color: #575e75;
+    }
+    main {
+      max-width: 1280px;
+      margin: auto;
+    }
+    .motion-frame > svg {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+    footer {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 18px;
+    }
+    input {
+      flex: 1;
+      min-width: 60px;
+    }
+    button {
+      padding: 8px 18px;
+    }
+    output {
+      min-width: 120px;
+    }
+    #error {
+      padding: 20px;
+      color: #b72929;
+    }
+  </style>
+  <script type="importmap">
+    { "imports": { "@blockdia-motion/core": "/packages/core/dist/index.js" } }
+  </script>
+  <main id="player"></main>
+  <p id="error" role="alert"></p>
+  <script type="module">
+    import { mountPlayer } from '/packages/renderer-browser/dist/index.js';
+    try {
+      const url = new URLSearchParams(location.search).get('scene') || '/artifacts/p1b/scene.json';
+      const response = await fetch(url);
+      if (!response.ok) throw Error(`无法读取教程：${response.status}`);
+      const compiled = await response.json();
+      const fontResponse = await fetch('/font.ttf');
+      if (!fontResponse.ok) throw Error('无法读取教程字体');
+      const bytes = await fontResponse.arrayBuffer();
+      const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (n) =>
+        n.toString(16).padStart(2, '0'),
+      ).join('');
+      if (digest !== compiled.manifest.source.fontSha256)
+        throw Error('字体与教程资源不匹配，请使用准备素材时的 MOTION_FONT');
+      const font = await new FontFace('Motion Sans', bytes).load();
+      document.fonts.add(font);
+      window.player = mountPlayer(document.querySelector('#player'), compiled);
+      window.renderAt = (time) => window.player.seek(time);
+      window.ready = true;
+    } catch (error) {
+      document.querySelector('#error').textContent = error.message;
+    }
+  </script>
+</html>

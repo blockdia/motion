@@ -5,18 +5,28 @@
   "scripts": {
     "p0": "node scripts/p0.mjs",
     "preview": "node scripts/serve.mjs",
-    "test": "node --test tests/*.test.mjs",
+    "test": "pnpm build && node --test tests/*.test.mjs",
     "p0:bootstrap": "node scripts/bootstrap.mjs",
     "p1a": "node scripts/p1a.mjs",
     "p1a:reference:bootstrap": "node scripts/bootstrap-reference.mjs",
-    "p1a:reference": "node scripts/reference.mjs"
+    "p1a:reference": "node scripts/reference.mjs",
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false",
+    "motion": "node packages/cli/dist/index.js",
+    "p1b": "pnpm build && node scripts/p1b.mjs",
+    "test:integration": "pnpm build && node --test tests/integration/*.test.mjs",
+    "format:check": "prettier --check \"packages/**/*.{ts,js,json,html}\" \"apps/**/*.html\" \"examples/**/*.{ts,json}\" \"scripts/p1b.mjs\" \"tests/compiler.test.mjs\" \"tests/integration/*.test.mjs\" \"docs/p1b.md\""
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "packageManager": "pnpm@10.17.1",
   "devDependencies": {
+    "@blockdia-motion/authoring": "workspace:*",
     "@resvg/resvg-js": "2.6.2",
-    "playwright-core": "1.62.1"
+    "@types/node": "^24.13.4",
+    "playwright-core": "1.62.1",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3"
   }
 }

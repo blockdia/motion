@@ -1,0 +1,111 @@
+{
+  "preparationMs": 1006.276208,
+  "jsonEquivalent": true,
+  "workspaceDisposed": true,
+  "source": {
+    "blocks": "7c58de666658df1bb447d010132aa3914c10f41e",
+    "gui": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",
+    "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+    "buildFiles": {
+      "blockly_compressed_vertical.js": "db3e5c641e10e1332be0e618499dfdab5a57a036057404007e38a7425df28b12",
+      "blocks_compressed.js": "f651fa9d00634a8bd1e1fd78741713f43bcb333b42325c79d3ab789d08815443",
+      "blocks_compressed_vertical.js": "c28275d2c884d3c6a4acff1f9035324eaeac469d02327527a0e1cae390a3d28d",
+      "msg/messages.js": "13c2c78be7d4399af59f56b3e70c65d029bcf5fc62b4caa3244ae5909ab6d7c0",
+      "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
+    }
+  },
+  "resources": 11,
+  "duration": 6.400000000000001,
+  "frameCount": 192,
+  "cliCompileEquivalent": true,
+  "randomSamples": 500,
+  "playerHasBlockly": false,
+  "keyframes": [
+    {
+      "name": "initial",
+      "time": 0,
+      "meanChannelError": 0.18044994212962964,
+      "changedPixelRatio": 0.0025748697916666667
+    },
+    {
+      "name": "toolbox-hat",
+      "time": 0.74,
+      "meanChannelError": 0.18335069444444443,
+      "changedPixelRatio": 0.0026627604166666666
+    },
+    {
+      "name": "drag-hat",
+      "time": 1.3,
+      "meanChannelError": 0.20446469907407408,
+      "changedPixelRatio": 0.0030327690972222223
+    },
+    {
+      "name": "drag-move",
+      "time": 2.8500000000000005,
+      "meanChannelError": 0.2158959056712963,
+      "changedPixelRatio": 0.0031575520833333334
+    },
+    {
+      "name": "typing-empty",
+      "time": 3.8100000000000005,
+      "meanChannelError": 0.21139105902777777,
+      "changedPixelRatio": 0.003152126736111111
+    },
+    {
+      "name": "typing",
+      "time": 4.050000000000001,
+      "meanChannelError": 0.21189163773148148,
+      "changedPixelRatio": 0.003154296875
+    },
+    {
+      "name": "typing-complete",
+      "time": 4.276666666666667,
+      "meanChannelError": 0.21269097222222222,
+      "changedPixelRatio": 0.003161892361111111
+    },
+    {
+      "name": "paste",
+      "time": 4.500000000000001,
+      "meanChannelError": 0.2441941550925926,
+      "changedPixelRatio": 0.0035275607638888887
+    },
+    {
+      "name": "final",
+      "time": 6.400000000000001,
+      "meanChannelError": 0.24452510127314814,
+      "changedPixelRatio": 0.0035329861111111113
+    }
+  ],
+  "browserControls": "play, pause, seek, dispose passed",
+  "export": {
+    "fps": 30,
+    "frames": 192,
+    "tutorialDuration": 6.400000000000001,
+    "encodedDuration": 6.4,
+    "width": 1280,
+    "height": 720,
+    "compositionMs": 48650.266327000034,
+    "exportMs": 48701.411583,
+    "nodePeakRssBytes": 585711616,
+    "source": {
+      "blocks": "7c58de666658df1bb447d010132aa3914c10f41e",
+      "gui": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",
+      "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+      "buildFiles": {
+        "blockly_compressed_vertical.js": "db3e5c641e10e1332be0e618499dfdab5a57a036057404007e38a7425df28b12",
+        "blocks_compressed.js": "f651fa9d00634a8bd1e1fd78741713f43bcb333b42325c79d3ab789d08815443",
+        "blocks_compressed_vertical.js": "c28275d2c884d3c6a4acff1f9035324eaeac469d02327527a0e1cae390a3d28d",
+        "msg/messages.js": "13c2c78be7d4399af59f56b3e70c65d029bcf5fc62b4caa3244ae5909ab6d7c0",
+        "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
+      }
+    }
+  },
+  "videoProbe": {
+    "width": 1280,
+    "height": 720,
+    "r_frame_rate": "30/1",
+    "duration": "6.400000",
+    "nb_read_frames": "192"
+  },
+  "totalMs": 54555.21725
+}
