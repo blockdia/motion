@@ -1,0 +1,83 @@
+{
+  "environment": {
+    "node": "v24.18.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "chromium": "153.0.8010.36"
+  },
+  "width": 1280,
+  "height": 720,
+  "fps": 30,
+  "duration": 7,
+  "frameCount": 210,
+  "sourceBuild": {
+    "commit": "7c58de666658df1bb447d010132aa3914c10f41e",
+    "files": {
+      "blockly_compressed_vertical.js": "db3e5c641e10e1332be0e618499dfdab5a57a036057404007e38a7425df28b12",
+      "blocks_compressed.js": "f651fa9d00634a8bd1e1fd78741713f43bcb333b42325c79d3ab789d08815443",
+      "blocks_compressed_vertical.js": "c28275d2c884d3c6a4acff1f9035324eaeac469d02327527a0e1cae390a3d28d",
+      "msg/messages.js": "13c2c78be7d4399af59f56b3e70c65d029bcf5fc62b4caa3244ae5909ab6d7c0",
+      "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
+    }
+  },
+  "browserSampledPeakRssBytes": 1048231936,
+  "workspaceDisposed": true,
+  "preparationMs": 1012.2013749999999,
+  "validation": {
+    "connected": true,
+    "fieldValue": "20",
+    "invalidConnectionRejected": true
+  },
+  "keyframeComparison": [
+    {
+      "name": "drag-hat",
+      "meanChannelError": 0.22196650752314814,
+      "changedPixelRatio": 0.003920355902777777
+    },
+    {
+      "name": "drag-move",
+      "meanChannelError": 0.25381401909722223,
+      "changedPixelRatio": 0.004417317708333333
+    },
+    {
+      "name": "connected10",
+      "meanChannelError": 0.25511357060185186,
+      "changedPixelRatio": 0.0044683159722222225
+    },
+    {
+      "name": "connected20",
+      "meanChannelError": 0.2605309606481481,
+      "changedPixelRatio": 0.004523654513888889
+    },
+    {
+      "name": "gallery",
+      "meanChannelError": 0.5115190972222222,
+      "changedPixelRatio": 0.007344835069444444
+    }
+  ],
+  "playerHasBlockly": false,
+  "encoderFlushMs": 44.49458299999969,
+  "encoderPeakRssBytes": 354746368,
+  "encoderCpuSeconds": 1.94,
+  "exportWallMs": 28775.219624999998,
+  "compositionMs": 28720.88428300002,
+  "pipeAndBackpressureMs": 5.712326999999277,
+  "nodePeakRssBytes": 822362112,
+  "processMaxRssBytes": 822394880,
+  "videoProbe": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "width": 1280,
+        "height": 720,
+        "r_frame_rate": "30/1",
+        "duration": "7.000000",
+        "nb_read_frames": "210"
+      }
+    ]
+  },
+  "totalMs": 31160.871875
+}

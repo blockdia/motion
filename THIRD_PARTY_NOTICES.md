@@ -1,0 +1,8 @@
+# P0 来源
+
+- Scratch / TurboWarp Scratch Blocks，MIT 与各贡献者，固定版本 7c58de666658df1bb447d010132aa3914c10f41e，来源 https://github.com/TurboWarp/scratch-blocks 。仓库 LICENSE 为 GPL-3.0，部分源码文件包含 Apache-2.0 头；原始文件的许可声明保留在准备快照中。生成的积木路径、文字布局与绿旗图标来自该源码。
+- TurboWarp GUI，Scratch Foundation、MIT 与各贡献者，固定版本 a2946eeb9a9dca7857d7ab53d766b54288c7a2ff，来源 https://github.com/TurboWarp/scratch-gui 。简化外壳参考其区域结构和样式；原项目 LICENSE 为 GPL-3.0。许可证文本位于 licenses/TurboWarp-GPL-3.0.txt。
+- Arial Unicode 字体使用本机已有文件，仅用于本地验证，不在仓库内分发。复现报告保存实际字体哈希；其他环境需提供具有相应使用权限且覆盖中文的字体。
+- resvg-js 与 Playwright 的版本固定在 pnpm-lock.yaml，依赖包保留各自许可证。FFmpeg 为外部运行工具，报告记录实际版本。
+
+此文件记录素材来源，不变更各上游原有的许可与商标声明。
