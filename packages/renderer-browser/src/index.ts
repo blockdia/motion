@@ -55,8 +55,18 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
   if (!catalog) fail('TARGET', 'render', `Missing target catalog ${s.targetId}`);
   const category = catalog.categories.find((c) => c.key === s.toolbox.category);
   const box = m.layout.toolbox;
+  const workspace = `<g clip-path="url(#workspace)">${s.nodes
+    .filter((n) => !n.dragging)
+    .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `root${i}`))
+    .join('')}</g>`;
+  const workspaceSlot = '<g data-slot="workspace"></g>';
+  const chrome = m.chrome.replace('<g data-slot="targets"></g>', () =>
+    targetPanelSvg(m, s.targetId),
+  );
   const content =
-    m.chrome.replace('<g data-slot="targets"></g>', () => targetPanelSvg(m, s.targetId)) +
+    (chrome.includes(workspaceSlot)
+      ? chrome.replace(workspaceSlot, () => workspace)
+      : chrome + workspace) +
     catalog.categories
       .map(
         (c) =>
@@ -85,10 +95,6 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
       )
       .join('')}</g>` +
     `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="#ccc"/>` +
-    `<g clip-path="url(#workspace)">${s.nodes
-      .filter((n) => !n.dragging)
-      .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `root${i}`))
-      .join('')}</g>` +
     `<g clip-path="url(#editor)">${s.nodes
       .filter((n) => n.dragging)
       .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`))

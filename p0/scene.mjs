@@ -93,11 +93,14 @@ export function frameSvg(time, assets, { gallery = false } = {}) {
       ]
         .map(([asset, x, y]) => node({ asset, x, y }))
         .join("")
-    : chrome() +
-      `<g clip-path="url(#toolbox)">${node({ asset: "hat", ...anchors.toolbox.hat })}${node({ asset: "move10", ...anchors.toolbox.move10 })}</g><g clip-path="url(#workspace)">${scene.nodes
-        .filter((n) => !n.dragging)
-        .map(node)
-        .join("")}</g><g clip-path="url(#editor)">${scene.nodes
+    : chrome().replace(
+        '<g data-slot="workspace"></g>',
+        () => `<g clip-path="url(#workspace)">${scene.nodes
+          .filter((n) => !n.dragging)
+          .map(node)
+          .join("")}</g>`,
+      ) +
+      `<g clip-path="url(#toolbox)">${node({ asset: "hat", ...anchors.toolbox.hat })}${node({ asset: "move10", ...anchors.toolbox.move10 })}</g><g clip-path="url(#editor)">${scene.nodes
         .filter((n) => n.dragging)
         .map(node)
         .join(

@@ -42,7 +42,8 @@ export function chrome({
     box(l.workspace, c.toolbox, `stroke="${c.border}" rx="8"`) +
     `<defs><pattern id="workspace-dots" x="311" y="93" width="27" height="27" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r=".7" fill="${c.grid}"/></pattern></defs>` +
     box(l.workspace, "url(#workspace-dots)") +
-    box(l.toolbox, c.toolbox, `stroke="${c.border}"`) +
+    '<g data-slot="workspace"></g>' +
+    box(l.toolbox, c.toolbox, `stroke="${c.border}" fill-opacity=".8"`) +
     box(l.categories, c.panel, `stroke="${c.border}"`) +
     categories
       .map(([name, color], i) =>

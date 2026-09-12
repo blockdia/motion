@@ -22,7 +22,7 @@ export const layout = Object.freeze({
   tabs: rect(0, 48, 782, 44),
   categories: rect(1, 93, 60, 537),
   toolbox: rect(61, 93, 250, 590),
-  workspace: rect(311, 93, 470, 589),
+  workspace: rect(61, 93, 720, 589),
   editor: rect(61, 93, 720, 589),
   stage: rect(790, 92, 482, 362),
   sprites: rect(790, 462, 402, 258),

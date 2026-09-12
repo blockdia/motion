@@ -64,6 +64,6 @@ test("scaled layout preserves toolbox origins and field targeting", () => {
   assert.match(frame, /translate\(430 190\) scale\(0.675\)/);
   assert.match(
     frame,
-    /<clipPath id="workspace"><rect x="311" y="93" width="470" height="589"\/>/,
+    /<clipPath id="workspace"><rect x="61" y="93" width="720" height="589"\/>/,
   );
 });
