@@ -19,6 +19,9 @@ window.createEditorContext = (project) => {
     target.isStage = data.isStage;
     target.x = data.x;
     target.y = data.y;
+    target.size = data.size;
+    target.direction = data.direction;
+    target.visible = data.visible;
     runtime.targets.push(target);
     for (const variable of data.variables)
       target.createVariable(variable.id, variable.name, variable.type, false);

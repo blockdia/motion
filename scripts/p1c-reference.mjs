@@ -118,11 +118,11 @@ zip.file(
         })),
         volume: 100,
         layerOrder: t.isStage ? 0 : 1,
-        visible: true,
+        visible: t.visible,
         x: t.x,
         y: t.y,
-        size: 100,
-        direction: 90,
+        size: t.size,
+        direction: t.direction,
         draggable: false,
         rotationStyle: 'all around',
       };
@@ -311,6 +311,34 @@ try {
         .filter((d) => d.kind !== 'separator' && d.kind !== 'checkbox')
         .map((d) => d.text),
     );
+    const properties = await page
+      .locator('[class*="sprite-info_sprite-info"] input')
+      .evaluateAll((inputs) =>
+        inputs.map((input) => ({
+          value: input.value,
+          placeholder: input.placeholder,
+          disabled: input.disabled,
+        })),
+      );
+    assert.equal(properties.length, 5);
+    assert.deepEqual(
+      properties.map((input) => input.value),
+      target.isStage
+        ? ['', '', '', '', '']
+        : [
+            target.name,
+            String(Math.round(target.x)),
+            String(Math.round(target.y)),
+            String(Math.round(target.size)),
+            String(Math.round(target.direction)),
+          ],
+    );
+    assert.ok(properties.every((input) => input.disabled === target.isStage));
+    if (target.isStage)
+      assert.deepEqual(
+        properties.slice(0, 3).map((input) => input.placeholder),
+        ['名字', 'x', 'y'],
+      );
     for (const category of ['motion', 'control', 'myBlocks']) {
       await page.evaluate(
         (category) =>

@@ -11,16 +11,16 @@
       "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
     },
     "catalog": {
-      "bundleSha256": "5a27d129162206b6001dce9a81964bf13b1254c8ee8a537710c52561ea9bd997",
+      "bundleSha256": "1a8bb37ca9d78956f9c6bc31857d42b93ad15ca8d0b297df4c8b4279549c7b86",
       "lockSha256": "d893f31c80e6654c6929735ed87557631ad9fce2f6742e2dad91db806231fbb8",
-      "contextSha256": "0a8b5af84575055cdabc6a773145872ae2ca36ad45373533234b364f9c11b17e",
-      "preparationSha256": "2e3d7debc35d3227ab84f209c7bb0daf9052eec6dd876b26a8ff3680504e4c32",
+      "contextSha256": "f7c94f4f3d4932cacbae73f7707dcc9d10311f94949b76ef9b917bd1df3950a8",
+      "preparationSha256": "ae9c3d60b56ab4fffd9903aacd3f40b7d4699300cfe0d2c050b9d2b2f0a209f6",
       "randomSeed": 1299149929,
       "browser": "153.0.8010.36",
       "protocol": 3
     }
   },
-  "preparationMs": 6327.494041,
+  "preparationMs": 6654.116458,
   "targets": {
     "stage": {
       "categories": 9,
@@ -42,62 +42,62 @@
     {
       "name": "0-stage-motion",
       "time": 0.1,
-      "meanChannelError": 0.4285481770833333,
-      "changedPixelRatio": 0.006647135416666667
+      "meanChannelError": 0.4398781105324074,
+      "changedPixelRatio": 0.006771918402777778
     },
     {
       "name": "1-stage-control",
       "time": 0.4,
-      "meanChannelError": 0.34114619502314814,
-      "changedPixelRatio": 0.005205078125
+      "meanChannelError": 0.3524750434027778,
+      "changedPixelRatio": 0.005329861111111111
     },
     {
       "name": "2-stage-myBlocks",
       "time": 0.7000000000000001,
-      "meanChannelError": 0.22038447627314814,
-      "changedPixelRatio": 0.003000217013888889
+      "meanChannelError": 0.23165907118055556,
+      "changedPixelRatio": 0.003125
     },
     {
       "name": "3-sprite-motion",
       "time": 1.0000000000000002,
-      "meanChannelError": 0.4938740596064815,
-      "changedPixelRatio": 0.007240668402777778
+      "meanChannelError": 0.5112478298611111,
+      "changedPixelRatio": 0.007391493055555556
     },
     {
       "name": "4-sprite-control",
       "time": 1.3000000000000003,
-      "meanChannelError": 0.34080078125,
-      "changedPixelRatio": 0.005194227430555556
+      "meanChannelError": 0.3581745515046296,
+      "changedPixelRatio": 0.005345052083333334
     },
     {
       "name": "5-sprite-myBlocks",
       "time": 1.6000000000000003,
-      "meanChannelError": 0.22905201099537037,
-      "changedPixelRatio": 0.003166232638888889
+      "meanChannelError": 0.24642469618055557,
+      "changedPixelRatio": 0.0033170572916666665
     },
     {
       "name": "6-sprite-b-motion",
       "time": 2.7500000000000004,
-      "meanChannelError": 0.4953157552083333,
-      "changedPixelRatio": 0.007255859375
+      "meanChannelError": 0.512726417824074,
+      "changedPixelRatio": 0.0074131944444444445
     },
     {
       "name": "7-sprite-b-control",
       "time": 3.0500000000000007,
-      "meanChannelError": 0.34126953125,
-      "changedPixelRatio": 0.0052007378472222225
+      "meanChannelError": 0.3586791087962963,
+      "changedPixelRatio": 0.005358072916666666
     },
     {
       "name": "8-sprite-b-myBlocks",
       "time": 3.350000000000001,
-      "meanChannelError": 0.22048719618055557,
-      "changedPixelRatio": 0.002995876736111111
+      "meanChannelError": 0.23789134837962964,
+      "changedPixelRatio": 0.0031532118055555554
     },
     {
       "name": "9-sprite-motion",
       "time": 4.6000000000000005,
-      "meanChannelError": 0.5158181423611111,
-      "changedPixelRatio": 0.0076030815972222224
+      "meanChannelError": 0.5331919126157407,
+      "changedPixelRatio": 0.00775390625
     }
   ],
   "export": {
@@ -107,9 +107,9 @@
     "encodedDuration": 4.6,
     "width": 1280,
     "height": 720,
-    "compositionMs": 55248.523123000006,
-    "exportMs": 55330.236875,
-    "nodePeakRssBytes": 612024320,
+    "compositionMs": 58611.25641899996,
+    "exportMs": 58683.181791,
+    "nodePeakRssBytes": 522862592,
     "source": {
       "blocks": "7c58de666658df1bb447d010132aa3914c10f41e",
       "gui": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",
@@ -122,10 +122,10 @@
         "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
       },
       "catalog": {
-        "bundleSha256": "5a27d129162206b6001dce9a81964bf13b1254c8ee8a537710c52561ea9bd997",
+        "bundleSha256": "1a8bb37ca9d78956f9c6bc31857d42b93ad15ca8d0b297df4c8b4279549c7b86",
         "lockSha256": "d893f31c80e6654c6929735ed87557631ad9fce2f6742e2dad91db806231fbb8",
-        "contextSha256": "0a8b5af84575055cdabc6a773145872ae2ca36ad45373533234b364f9c11b17e",
-        "preparationSha256": "2e3d7debc35d3227ab84f209c7bb0daf9052eec6dd876b26a8ff3680504e4c32",
+        "contextSha256": "f7c94f4f3d4932cacbae73f7707dcc9d10311f94949b76ef9b917bd1df3950a8",
+        "preparationSha256": "ae9c3d60b56ab4fffd9903aacd3f40b7d4699300cfe0d2c050b9d2b2f0a209f6",
         "randomSeed": 1299149929,
         "browser": "153.0.8010.36",
         "protocol": 3

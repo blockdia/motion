@@ -91,7 +91,12 @@ export async function createAdapter(options: {
     viewport: { width: 1280, height: 720 },
     locale: 'zh-CN',
     theme: '',
-    chrome: chrome({ toolboxHeadings: false, toolboxScrollbar: false, availableCategories: [] }),
+    chrome: chrome({
+      targetPanel: true,
+      toolboxHeadings: false,
+      toolboxScrollbar: false,
+      availableCategories: [],
+    }),
     project: structuredClone(options.project),
     targets: {},
     layout,

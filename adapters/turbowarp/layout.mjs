@@ -26,6 +26,7 @@ export const layout = Object.freeze({
   editor: rect(61, 93, 720, 589),
   stage: rect(790, 92, 482, 362),
   sprites: rect(790, 462, 402, 258),
+  spriteList: rect(791, 565, 400, 155),
   backdrop: rect(1200, 462, 72, 258),
   blockScale: 0.675,
   toolboxPadding: 4,

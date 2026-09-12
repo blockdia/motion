@@ -24,6 +24,9 @@ export interface ProjectTarget {
   isStage: boolean;
   x: number;
   y: number;
+  size: number;
+  direction: number;
+  visible: boolean;
   costumes: string[];
   sounds: string[];
   variables: { id: string; name: string; type: '' | 'list' | 'broadcast_msg' }[];
@@ -45,6 +48,9 @@ export function defaultProject(): ProjectContext {
         isStage: true,
         x: 0,
         y: 0,
+        size: 100,
+        direction: 90,
+        visible: true,
         costumes: ['背景1'],
         sounds: [],
         variables: [],
@@ -56,6 +62,9 @@ export function defaultProject(): ProjectContext {
         isStage: false,
         x: 0,
         y: 0,
+        size: 100,
+        direction: 90,
+        visible: true,
         costumes: ['造型1'],
         sounds: [],
         variables: [],
@@ -214,6 +223,8 @@ export interface Manifest {
     toolbox: Rect;
     editor: Rect;
     categories: Rect;
+    spriteList: Rect;
+    backdrop: Rect;
     blockScale: number;
     toolboxPadding: number;
     stackGap: number;
@@ -423,6 +434,8 @@ export function assertResources(scene: CompiledScene): void {
     !rect(m.layout.workspace) ||
     !rect(m.layout.toolbox) ||
     !rect(m.layout.editor) ||
+    !rect(m.layout.spriteList) ||
+    !rect(m.layout.backdrop) ||
     !(m.layout.blockScale > 0) ||
     !Number.isFinite(m.layout.blockScale) ||
     !Number.isFinite(m.layout.toolboxPadding) ||

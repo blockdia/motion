@@ -10,6 +10,7 @@ export function chrome({
   toolboxHeadings = true,
   availableCategories = null,
   toolboxScrollbar = true,
+  targetPanel = false,
 } = {}) {
   const categories = [
     ["运动", "#4c97ff"],
@@ -80,12 +81,14 @@ export function chrome({
     text(1084, 538, "方向", 10) +
     input(976, 518, 64) +
     input(1116, 518, 63) +
-    `<rect x="832" y="518" width="33" height="32" rx="3" fill="#ffe5e5" stroke="#d4d4d4"/><rect x="865" y="518" width="33" height="32" rx="3" fill="white" stroke="#d4d4d4"/>` +
+    (targetPanel ? `<defs>${["show", "hide"].map(name => { const im = icons[name]; return `<g id="target-${name}-icon"><image ${attrs(im)} href="${im.uri}"/></g>`; }).join("")}</defs>` : `<rect x="832" y="518" width="33" height="32" rx="3" fill="#ffe5e5" stroke="#d4d4d4"/><rect x="865" y="518" width="33" height="32" rx="3" fill="white" stroke="#d4d4d4"/>`) +
     text(1226, 489, "舞台", 10) +
     `<rect x="1204" y="509" width="64" height="48" rx="3" fill="white" stroke="#d4d4d4"/>` +
     text(1226, 580, "背景", 10) +
+    '<g data-slot="targets"></g>' +
     `<circle cx="1153" cy="686" r="24" fill="${c.accent}" stroke="#ffb5b5" stroke-width="4"/><circle cx="1236" cy="686" r="24" fill="${c.accent}" stroke="#ffb5b5" stroke-width="4"/>` +
     Object.entries(icons)
+      .filter(([name]) => !targetPanel || !["show", "hide"].includes(name))
       .map(
         ([name, im]) =>
           `<image data-ui="${name}" ${attrs(im)} href="${im.uri}"${name === "stop" ? ' opacity=".5"' : ""}/>`,

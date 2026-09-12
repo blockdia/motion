@@ -1,5 +1,5 @@
 {
-  "preparationMs": 4174.019875,
+  "preparationMs": 3644.0171250000003,
   "jsonEquivalent": true,
   "workspaceDisposed": true,
   "source": {
@@ -14,10 +14,10 @@
       "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
     },
     "catalog": {
-      "bundleSha256": "5a27d129162206b6001dce9a81964bf13b1254c8ee8a537710c52561ea9bd997",
+      "bundleSha256": "1a8bb37ca9d78956f9c6bc31857d42b93ad15ca8d0b297df4c8b4279549c7b86",
       "lockSha256": "d893f31c80e6654c6929735ed87557631ad9fce2f6742e2dad91db806231fbb8",
-      "contextSha256": "445595afc7516ec65ab575b268a75dca183106976581f011593872a52eb3bb0d",
-      "preparationSha256": "2e3d7debc35d3227ab84f209c7bb0daf9052eec6dd876b26a8ff3680504e4c32",
+      "contextSha256": "b38a7453ff96369a8a8afccbbb6a0b2929a0eef9d7c82b42de77099edc192c9a",
+      "preparationSha256": "ae9c3d60b56ab4fffd9903aacd3f40b7d4699300cfe0d2c050b9d2b2f0a209f6",
       "randomSeed": 1299149929,
       "browser": "153.0.8010.36",
       "protocol": 3
@@ -33,56 +33,56 @@
     {
       "name": "initial",
       "time": 0,
-      "meanChannelError": 0.4851403356481481,
-      "changedPixelRatio": 0.007197265625
+      "meanChannelError": 0.4962084056712963,
+      "changedPixelRatio": 0.007281901041666667
     },
     {
       "name": "toolbox-hat",
       "time": 0.74,
-      "meanChannelError": 0.4027936921296296,
-      "changedPixelRatio": 0.006624348958333333
+      "meanChannelError": 0.4138682725694444,
+      "changedPixelRatio": 0.006708984375
     },
     {
       "name": "drag-hat",
       "time": 1.3,
-      "meanChannelError": 0.41717447916666667,
-      "changedPixelRatio": 0.007017144097222222
+      "meanChannelError": 0.42824905960648146,
+      "changedPixelRatio": 0.007101779513888889
     },
     {
       "name": "drag-move",
       "time": 2.8500000000000005,
-      "meanChannelError": 0.5158072916666666,
-      "changedPixelRatio": 0.007685546875
+      "meanChannelError": 0.5268829571759259,
+      "changedPixelRatio": 0.007770182291666667
     },
     {
       "name": "typing-empty",
       "time": 3.8100000000000005,
-      "meanChannelError": 0.5131535734953704,
-      "changedPixelRatio": 0.007629123263888889
+      "meanChannelError": 0.5242194733796296,
+      "changedPixelRatio": 0.007713758680555556
     },
     {
       "name": "typing",
       "time": 4.050000000000001,
-      "meanChannelError": 0.5136541521990741,
-      "changedPixelRatio": 0.007631293402777778
+      "meanChannelError": 0.5247200520833334,
+      "changedPixelRatio": 0.007715928819444444
     },
     {
       "name": "typing-complete",
       "time": 4.276666666666667,
-      "meanChannelError": 0.5144534866898148,
-      "changedPixelRatio": 0.007638888888888889
+      "meanChannelError": 0.525519386574074,
+      "changedPixelRatio": 0.0077235243055555555
     },
     {
       "name": "paste",
       "time": 4.500000000000001,
-      "meanChannelError": 0.5459407552083333,
-      "changedPixelRatio": 0.008009982638888889
+      "meanChannelError": 0.5570164207175926,
+      "changedPixelRatio": 0.008094618055555556
     },
     {
       "name": "final",
       "time": 6.400000000000001,
-      "meanChannelError": 0.5462934027777778,
-      "changedPixelRatio": 0.008015407986111112
+      "meanChannelError": 0.5573636429398148,
+      "changedPixelRatio": 0.008100043402777778
     }
   ],
   "browserControls": "play, pause, seek, dispose passed",
@@ -93,9 +93,9 @@
     "encodedDuration": 6.4,
     "width": 1280,
     "height": 720,
-    "compositionMs": 87004.6954929999,
-    "exportMs": 87071.948416,
-    "nodePeakRssBytes": 368001024,
+    "compositionMs": 91706.65837600005,
+    "exportMs": 91775.904542,
+    "nodePeakRssBytes": 349618176,
     "source": {
       "blocks": "7c58de666658df1bb447d010132aa3914c10f41e",
       "gui": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",
@@ -108,10 +108,10 @@
         "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
       },
       "catalog": {
-        "bundleSha256": "5a27d129162206b6001dce9a81964bf13b1254c8ee8a537710c52561ea9bd997",
+        "bundleSha256": "1a8bb37ca9d78956f9c6bc31857d42b93ad15ca8d0b297df4c8b4279549c7b86",
         "lockSha256": "d893f31c80e6654c6929735ed87557631ad9fce2f6742e2dad91db806231fbb8",
-        "contextSha256": "445595afc7516ec65ab575b268a75dca183106976581f011593872a52eb3bb0d",
-        "preparationSha256": "2e3d7debc35d3227ab84f209c7bb0daf9052eec6dd876b26a8ff3680504e4c32",
+        "contextSha256": "b38a7453ff96369a8a8afccbbb6a0b2929a0eef9d7c82b42de77099edc192c9a",
+        "preparationSha256": "ae9c3d60b56ab4fffd9903aacd3f40b7d4699300cfe0d2c050b9d2b2f0a209f6",
         "randomSeed": 1299149929,
         "browser": "153.0.8010.36",
         "protocol": 3
@@ -125,5 +125,5 @@
     "duration": "6.400000",
     "nb_read_frames": "192"
   },
-  "totalMs": 101776.529292
+  "totalMs": 105414.570792
 }

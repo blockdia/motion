@@ -176,6 +176,9 @@ export function validateProject(
       'isStage',
       'x',
       'y',
+      'size',
+      'direction',
+      'visible',
       'costumes',
       'sounds',
       'variables',
@@ -189,9 +192,12 @@ export function validateProject(
     names.add(t.name);
     if (typeof t.isStage !== 'boolean') fail('SCHEMA', path, 'Expected isStage');
     if (t.isStage) stages++;
-    for (const k of ['x', 'y'])
+    for (const k of ['x', 'y', 'size', 'direction'])
       if (typeof t[k] !== 'number' || !Number.isFinite(t[k]))
-        fail('SCHEMA', path, 'Explicit finite target position required');
+        fail('SCHEMA', path, `Explicit finite target ${k} required`);
+    if (typeof t.visible !== 'boolean') fail('SCHEMA', path, 'Explicit target visibility required');
+    if ((t.size as number) <= 0 || (t.direction as number) < -180 || (t.direction as number) > 180)
+      fail('SCHEMA', path, 'Target size must be positive and direction within [-180, 180]');
     for (const k of ['costumes', 'sounds', 'variables', 'procedures'])
       if (!Array.isArray(t[k])) fail('SCHEMA', path, `Expected ${k} array`);
     if (!(t.costumes as unknown[]).length)

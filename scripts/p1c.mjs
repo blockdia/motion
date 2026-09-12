@@ -6,6 +6,7 @@ import { targetProject } from '../tests/fixtures/target-project.mjs';
 import { compile, defineTutorial } from '../packages/authoring/dist/index.js';
 import { createAdapter } from '../packages/asset-builder/dist/index.js';
 import { evaluate } from '../packages/core/dist/index.js';
+import { frameSvg } from '../packages/renderer-browser/dist/index.js';
 import { rasterFrame, exportVideo } from '../packages/renderer-video/dist/index.js';
 import { serve, root, font } from './server.mjs';
 const project = targetProject(),
@@ -94,6 +95,46 @@ try {
     const state = evaluate(time, scene),
       name = `${index}-${state.targetId}-${state.toolbox.category}`;
     await page.evaluate((t) => window.player.seek(t), time);
+    const target = project.targets.find((target) => target.id === state.targetId);
+    assert.deepEqual(
+      await page
+        .locator('[data-property]')
+        .evaluateAll((fields) =>
+          Object.fromEntries(
+            fields.map((field) => [field.getAttribute('data-property'), field.textContent]),
+          ),
+        ),
+      {
+        name: target.isStage ? '名字' : target.name,
+        x: target.isStage ? 'x' : String(Math.round(target.x)),
+        y: target.isStage ? 'y' : String(Math.round(target.y)),
+        size: target.isStage ? '' : String(Math.round(target.size)),
+        direction: target.isStage ? '' : String(Math.round(target.direction)),
+      },
+    );
+    assert.deepEqual(
+      await page
+        .locator('[data-visibility][aria-pressed="true"]')
+        .evaluateAll((buttons) => buttons.map((button) => button.getAttribute('data-visibility'))),
+      target.isStage ? [] : [target.visible ? 'show' : 'hide'],
+    );
+    assert.deepEqual(
+      await page.locator('[data-ui="sprite-list"] [data-target-id]').evaluateAll((tiles) =>
+        tiles.map((tile) => ({
+          id: tile.getAttribute('data-target-id'),
+          name: tile.querySelector('title').textContent,
+        })),
+      ),
+      project.targets
+        .filter((target) => !target.isStage)
+        .map((target) => ({ id: target.id, name: target.name })),
+    );
+    assert.deepEqual(
+      await page
+        .locator('[data-ui="targets"] [data-selected="true"]')
+        .evaluateAll((tiles) => tiles.map((tile) => tile.getAttribute('data-target-id'))),
+      [state.targetId],
+    );
     await page.locator('.motion-frame').screenshot({ path: `${out}/browser-${name}.png` });
     await writeFile(`${out}/video-${name}.png`, rasterFrame(scene, time, font));
     const difference = await page.evaluate(async (name) => {
@@ -134,6 +175,52 @@ try {
     for (const prefix of ['browser', 'video'])
       await copyFile(`${out}/${prefix}-${name}.png`, `${baseline}/${prefix}-${name}.png`);
   }
+  // Rendering-only stress fixture: reuse prepared blocks and vary the target panel.
+  const many = structuredClone(scene);
+  const sprite = many.manifest.project.targets.find((target) => !target.isStage);
+  const longName = '很长的角色名称 $& <script> & "测试"';
+  many.manifest.project.targets = [
+    many.manifest.project.targets[0],
+    ...Array.from({ length: 15 }, (_, index) => ({
+      ...sprite,
+      id: `sprite-${index}`,
+      name: index === 14 ? longName : `角色 ${index + 1}`,
+    })),
+  ];
+  for (const target of many.manifest.project.targets)
+    many.manifest.targets[target.id] = scene.manifest.targets[target.isStage ? 'stage' : 'sprite'];
+  many.initial.targetId = 'sprite-14';
+  many.events = [];
+  many.tracks = [];
+  await page.locator('.motion-frame').evaluate(
+    (host, svg) => {
+      host.innerHTML = svg;
+    },
+    frameSvg(0, many),
+  );
+  const tile = page.locator('[data-target-id="sprite-14"]');
+  assert.equal(await tile.locator('title').textContent(), longName);
+  assert.equal(await page.locator('.motion-frame script').count(), 0);
+  const tileBounds = await tile.boundingBox();
+  assert.ok(
+    tileBounds.y >= 565 && tileBounds.y + tileBounds.height < 658,
+    JSON.stringify(tileBounds),
+  );
+  await page.locator('.motion-frame').screenshot({ path: `${baseline}/browser-targets-many.png` });
+  await writeFile(`${baseline}/video-targets-many.png`, rasterFrame(many, 0, font));
+  many.manifest.project.targets = many.manifest.project.targets.filter((target) => target.isStage);
+  many.initial.targetId = 'stage';
+  await page.locator('.motion-frame').evaluate(
+    (host, svg) => {
+      host.innerHTML = svg;
+    },
+    frameSvg(0, many),
+  );
+  assert.equal(await page.locator('[data-ui="sprite-list"] [data-target-id]').count(), 0);
+  assert.equal(
+    await page.locator('[data-target-id="stage"]').getAttribute('data-selected'),
+    'true',
+  );
   assert.deepEqual(errors, []);
   assert.equal(await page.evaluate(() => typeof window.Blockly), 'undefined');
 } finally {

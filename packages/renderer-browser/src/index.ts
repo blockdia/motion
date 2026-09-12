@@ -6,6 +6,7 @@ import {
   type Rect,
   type Snapshot,
 } from '@blockdia-motion/core';
+import { targetPanelSvg } from './targets.js';
 const escape = (s: string) =>
   s
     .replaceAll('&', '&amp;')
@@ -45,7 +46,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
     if (!resource) fail('RESOURCE', 'render', `Missing resource ${asset}`);
     // Resources can occur in both toolbox and workspace. Namespace every instance.
     const content = resource.content
-      .replace(/\bid="([^"]+)"/g, (_, id: string) => `id="${prefix}-${id}"`)
+      .replace(/(?<=\s)id="([^"]+)"/g, (_, id: string) => `id="${prefix}-${id}"`)
       .replace(/url\(#([^)]+)\)/g, (_, id: string) => `url(#${prefix}-${id})`)
       .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${prefix}-${id}`);
     return `<g opacity="${opacity}" transform="translate(${x} ${y}) scale(${scale})">${content}</g>`;
@@ -55,7 +56,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
   const category = catalog.categories.find((c) => c.key === s.toolbox.category);
   const box = m.layout.toolbox;
   const content =
-    m.chrome +
+    m.chrome.replace('<g data-slot="targets"></g>', () => targetPanelSvg(m, s.targetId)) +
     catalog.categories
       .map(
         (c) =>
@@ -84,7 +85,6 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
       )
       .join('')}</g>` +
     `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="#ccc"/>` +
-    `<text x="844" y="497" font-size="12" fill="#575e75">${escape(m.project.targets.find((t) => t.id === s.targetId)?.name ?? '')}</text>` +
     `<g clip-path="url(#workspace)">${s.nodes
       .filter((n) => !n.dragging)
       .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `root${i}`))
@@ -107,7 +107,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
         .join(',') + '{',
   )}</style><defs>${['workspace', 'toolbox', 'editor'].map((key) => `<clipPath id="${key}"><rect ${rect(m.layout[key as 'workspace'])}/></clipPath>`).join('')}</defs><g font-family="Motion Sans">${content}</g></svg>`;
   return svg
-    .replace(/\bid="([^"]+)"/g, (_, id: string) => `id="${namespace}-${id}"`)
+    .replace(/(?<=\s)id="([^"]+)"/g, (_, id: string) => `id="${namespace}-${id}"`)
     .replace(/url\(#([^)]+)\)/g, (_, id: string) => `url(#${namespace}-${id})`)
     .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${namespace}-${id}`);
 }

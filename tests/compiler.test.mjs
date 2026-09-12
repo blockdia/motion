@@ -39,7 +39,7 @@ function mockAdapter() {
     viewport: { width: 1280, height: 720 },
     locale: 'zh-CN',
     theme: '',
-    chrome: '',
+    chrome: '<g data-slot="targets"></g>',
     layout: {
       blockScale: 0.675,
       toolboxPadding: 4,
@@ -48,6 +48,8 @@ function mockAdapter() {
       toolbox: { x: 61, y: 93, width: 250, height: 590 },
       editor: { x: 61, y: 93, width: 720, height: 590 },
       categories: { x: 1, y: 93, width: 60, height: 537 },
+      spriteList: { x: 791, y: 565, width: 400, height: 155 },
+      backdrop: { x: 1200, y: 462, width: 72, height: 258 },
     },
     slots: { main: { x: 430, y: 190 }, secondary: { x: 450, y: 365 } },
     categories: [
@@ -430,6 +432,21 @@ test('project schema and adapter context reject ambiguity without depending on p
     (p) => {
       p.targets[1].id = '__proto__';
     },
+    (p) => {
+      delete p.targets[1].size;
+    },
+    (p) => {
+      p.targets[1].size = 0;
+    },
+    (p) => {
+      p.targets[1].direction = 181;
+    },
+    (p) => {
+      p.targets[1].direction = NaN;
+    },
+    (p) => {
+      p.targets[1].visible = 'false';
+    },
   ]) {
     const invalid = structuredClone(tutorial);
     change(invalid.project);
@@ -569,4 +586,53 @@ test('typing uses measured intermediate block resources, parks cursor, then atom
   const broken = structuredClone(result);
   delete broken.manifest.resources[input.frames[2].asset];
   assert.throws(() => assertResources(broken), /RESOURCE/);
+});
+
+test('target list follows timeline selection, escapes names, scrolls deterministically and supports stage-only projects', async () => {
+  const adapter = mockAdapter();
+  const base = adapter.manifest.project.targets.find((target) => !target.isStage);
+  const sprites = Array.from({ length: 15 }, (_, index) => ({
+    ...structuredClone(base),
+    id: `sprite-${index}`,
+    name: index === 14 ? '很长的角色名称 $& <script> & "测试"' : `角色 ${index + 1}`,
+  }));
+  adapter.manifest.project.targets = [adapter.manifest.project.targets[0], ...sprites];
+  for (const target of sprites)
+    adapter.manifest.targets[target.id] = adapter.manifest.targets.sprite;
+  const tutorial = {
+    ...spec([
+      { op: 'wait', duration: 1 },
+      { op: 'selectTarget', targetId: 'sprite-14' },
+      { op: 'wait', duration: 1 },
+      { op: 'selectTarget', targetId: 'stage' },
+      { op: 'wait', duration: 1 },
+    ]),
+    project: adapter.manifest.project,
+    initialTarget: 'sprite-0',
+  };
+  const scene = await compile(tutorial, adapter);
+  const initial = frameSvg(0, scene),
+    last = frameSvg(1, scene),
+    stage = frameSvg(2, scene);
+  assert.match(initial, /data-target-id="sprite-0" data-selected="true"/);
+  assert.match(last, /data-target-id="sprite-14" data-selected="true"/);
+  assert.match(last, /\$&amp; &lt;script&gt; &amp; &quot;测试&quot;/);
+  assert.doesNotMatch(last, /<script>|data-slot="targets"/);
+  assert.ok(Number(last.match(/data-scroll="([^"]+)"/)[1]) > 0);
+  assert.match(stage, /data-target-id="stage" data-selected="true"/);
+  assert.match(stage, /data-ui="target-properties" aria-disabled="true"/);
+  assert.match(stage, />名字<\/text>/);
+  assert.doesNotMatch(stage, /aria-pressed="true"/);
+  assert.match(initial, /data-property="size"[^>]*>100<\/text>/);
+  assert.match(initial, /data-property="direction"[^>]*>90<\/text>/);
+  assert.equal(frameSvg(1, scene), last);
+  assert.equal(frameSvg(0, scene), initial);
+  adapter.manifest.project.targets = [adapter.manifest.project.targets[0]];
+  const empty = await compile(
+    { ...tutorial, initialTarget: 'stage', steps: [{ op: 'wait', duration: 1 }] },
+    adapter,
+  );
+  const svg = frameSvg(0, empty);
+  assert.equal((svg.match(/data-target-id=/g) ?? []).length, 1);
+  assert.match(svg, /data-scroll="0"/);
 });

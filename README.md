@@ -2,7 +2,7 @@
 
 用代码编排 TurboWarp / Blockdia 风格的代码编辑教程，支持浏览器播放与离线视频渲染。
 
-已完成 **P1c Target 上下文与完整 toolbox**：TypeScript/JSON 作者入口、语义编译、真实 Blockly 校验与 SVG 提取、可跳转播放器，以及同一编译产物的 CLI 视频导出。目录由固定 GUI/Blockly 按项目生成，支持舞台与多个角色、局部数据、自定义积木目录及 `selectTarget`。编辑器画面复用 P1a 的固定 TurboWarp 布局基线；P0 固定示例仍保留。
+已完成 **P1c Target 上下文与完整 toolbox**：TypeScript/JSON 作者入口、语义编译、真实 Blockly 校验与 SVG 提取、可跳转播放器，以及同一编译产物的 CLI 视频导出。目录由固定 GUI/Blockly 按项目生成，支持舞台与多个角色、局部数据、自定义积木目录及 `selectTarget`，角色列表随教程同步显示选中状态。编辑器画面复用 P1a 的固定 TurboWarp 布局基线；P0 固定示例仍保留。
 
 ```sh
 pnpm install --frozen-lockfile
