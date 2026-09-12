@@ -28,9 +28,11 @@ export const layout = Object.freeze({
   sprites: rect(790, 462, 402, 258),
   backdrop: rect(1200, 462, 72, 258),
   blockScale: 0.675,
+  toolboxPadding: 4,
+  stackGap: 30,
 });
 export const anchors = Object.freeze({
-  workspace: Object.freeze({ main: Object.freeze({ x: 430, y: 190 }) }),
+  workspace: Object.freeze({ main: Object.freeze({ x: 430, y: 190 }), secondary: Object.freeze({ x: 450, y: 365 }), lower: Object.freeze({ x: 440, y: 520 }) }),
   toolbox: Object.freeze({
     hat: Object.freeze({ x: 69, y: 138 }),
     move10: Object.freeze({ x: 69, y: 238 }),
@@ -43,3 +45,6 @@ export const anchors = Object.freeze({
 });
 export const rectAttributes = ({ x, y, width, height }) =>
   `x="${x}" y="${y}" width="${width}" height="${height}"`;
+
+// Preparation and scene geometry share these category and placement conventions.
+export const catalogLayout = Object.freeze({categoryOffset: 16, categoryStep: 49});

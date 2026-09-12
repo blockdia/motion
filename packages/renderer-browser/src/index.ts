@@ -50,18 +50,41 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
       .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${prefix}-${id}`);
     return `<g opacity="${opacity}" transform="translate(${x} ${y}) scale(${scale})">${content}</g>`;
   };
-  const category = m.categories.find((c) => c.key === s.toolbox.category);
+  const catalog = m.targets[s.targetId];
+  if (!catalog) fail('TARGET', 'render', `Missing target catalog ${s.targetId}`);
+  const category = catalog.categories.find((c) => c.key === s.toolbox.category);
   const box = m.layout.toolbox;
   const content =
     m.chrome +
+    catalog.categories
+      .map(
+        (c) =>
+          `<circle cx="${m.layout.categories.x + m.layout.categories.width / 2}" cy="${c.y}" r="9.5" fill="${escape(c.color ?? '#888')}"/><text x="${m.layout.categories.x + m.layout.categories.width / 2}" y="${c.y + 23}" text-anchor="middle" font-size="10.4" fill="#575e75">${escape(c.label)}</text>`,
+      )
+      .join('') +
     (category
       ? `<rect x="2" y="${category.y - 15}" width="58" height="46" rx="3" fill="#4c97ff" opacity=".12"/>`
       : '') +
-    `<g clip-path="url(#toolbox)">${m.toolbox
-      .filter((e) => e.category === s.toolbox.category)
+    `<g clip-path="url(#toolbox)">${catalog.toolbox
+      .filter((e) => {
+        const b = m.resources[e.asset]!.box;
+        const top = e.position.y + b.y * scale - s.toolbox.scroll;
+        return top < box.y + box.height && top + b.height * scale > box.y;
+      })
       .map((e, i) => node(e.asset, e.position.x, e.position.y - s.toolbox.scroll, 1, `tool${i}`))
+      .join('')}${catalog.decorations
+      .filter(
+        (d) =>
+          d.position.y - s.toolbox.scroll + d.height >= box.y &&
+          d.position.y - s.toolbox.scroll < box.y + box.height,
+      )
+      .map(
+        (d) =>
+          `<g transform="translate(${d.position.x} ${d.position.y - s.toolbox.scroll})">${d.kind === 'checkbox' ? `<rect width="${d.width}" height="${d.height}" rx="3" fill="white" stroke="#888"/>` : d.kind === 'button' ? `<rect width="${d.width}" height="${d.height}" rx="4" fill="white" stroke="#c7c7c7"/>` : ''}<text x="${d.kind === 'button' ? d.width / 2 : 0}" y="${d.height / 2 + 4}" text-anchor="${d.kind === 'button' ? 'middle' : 'start'}" font-size="12" fill="#575e75">${escape(d.text)}</text></g>`,
+      )
       .join('')}</g>` +
-    `<rect x="${box.x + 1}" y="${box.y + 1}" width="${box.width - 12}" height="34" fill="#f9f9f9"/><text x="69" y="122" font-size="12" fill="#575e75">${escape(category?.label ?? '')}</text>` +
+    `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="#ccc"/>` +
+    `<text x="844" y="497" font-size="12" fill="#575e75">${escape(m.project.targets.find((t) => t.id === s.targetId)?.name ?? '')}</text>` +
     `<g clip-path="url(#workspace)">${s.nodes
       .filter((n) => !n.dragging)
       .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `root${i}`))

@@ -1,0 +1,142 @@
+{
+  "source": {
+    "blocks": "7c58de666658df1bb447d010132aa3914c10f41e",
+    "gui": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",
+    "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+    "buildFiles": {
+      "blockly_compressed_vertical.js": "db3e5c641e10e1332be0e618499dfdab5a57a036057404007e38a7425df28b12",
+      "blocks_compressed.js": "f651fa9d00634a8bd1e1fd78741713f43bcb333b42325c79d3ab789d08815443",
+      "blocks_compressed_vertical.js": "c28275d2c884d3c6a4acff1f9035324eaeac469d02327527a0e1cae390a3d28d",
+      "msg/messages.js": "13c2c78be7d4399af59f56b3e70c65d029bcf5fc62b4caa3244ae5909ab6d7c0",
+      "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
+    },
+    "catalog": {
+      "bundleSha256": "5a27d129162206b6001dce9a81964bf13b1254c8ee8a537710c52561ea9bd997",
+      "lockSha256": "d893f31c80e6654c6929735ed87557631ad9fce2f6742e2dad91db806231fbb8",
+      "contextSha256": "0a8b5af84575055cdabc6a773145872ae2ca36ad45373533234b364f9c11b17e",
+      "preparationSha256": "2e3d7debc35d3227ab84f209c7bb0daf9052eec6dd876b26a8ff3680504e4c32",
+      "randomSeed": 1299149929,
+      "browser": "153.0.8010.36",
+      "protocol": 3
+    }
+  },
+  "preparationMs": 6327.494041,
+  "targets": {
+    "stage": {
+      "categories": 9,
+      "entries": 83,
+      "contentHeight": 5221.900000000001
+    },
+    "sprite": {
+      "categories": 9,
+      "entries": 123,
+      "contentHeight": 7051.150000000001
+    },
+    "sprite-b": {
+      "categories": 9,
+      "entries": 122,
+      "contentHeight": 7051.150000000001
+    }
+  },
+  "keyframes": [
+    {
+      "name": "0-stage-motion",
+      "time": 0.1,
+      "meanChannelError": 0.4285481770833333,
+      "changedPixelRatio": 0.006647135416666667
+    },
+    {
+      "name": "1-stage-control",
+      "time": 0.4,
+      "meanChannelError": 0.34114619502314814,
+      "changedPixelRatio": 0.005205078125
+    },
+    {
+      "name": "2-stage-myBlocks",
+      "time": 0.7000000000000001,
+      "meanChannelError": 0.22038447627314814,
+      "changedPixelRatio": 0.003000217013888889
+    },
+    {
+      "name": "3-sprite-motion",
+      "time": 1.0000000000000002,
+      "meanChannelError": 0.4938740596064815,
+      "changedPixelRatio": 0.007240668402777778
+    },
+    {
+      "name": "4-sprite-control",
+      "time": 1.3000000000000003,
+      "meanChannelError": 0.34080078125,
+      "changedPixelRatio": 0.005194227430555556
+    },
+    {
+      "name": "5-sprite-myBlocks",
+      "time": 1.6000000000000003,
+      "meanChannelError": 0.22905201099537037,
+      "changedPixelRatio": 0.003166232638888889
+    },
+    {
+      "name": "6-sprite-b-motion",
+      "time": 2.7500000000000004,
+      "meanChannelError": 0.4953157552083333,
+      "changedPixelRatio": 0.007255859375
+    },
+    {
+      "name": "7-sprite-b-control",
+      "time": 3.0500000000000007,
+      "meanChannelError": 0.34126953125,
+      "changedPixelRatio": 0.0052007378472222225
+    },
+    {
+      "name": "8-sprite-b-myBlocks",
+      "time": 3.350000000000001,
+      "meanChannelError": 0.22048719618055557,
+      "changedPixelRatio": 0.002995876736111111
+    },
+    {
+      "name": "9-sprite-motion",
+      "time": 4.6000000000000005,
+      "meanChannelError": 0.5158181423611111,
+      "changedPixelRatio": 0.0076030815972222224
+    }
+  ],
+  "export": {
+    "fps": 30,
+    "frames": 138,
+    "tutorialDuration": 4.6000000000000005,
+    "encodedDuration": 4.6,
+    "width": 1280,
+    "height": 720,
+    "compositionMs": 55248.523123000006,
+    "exportMs": 55330.236875,
+    "nodePeakRssBytes": 612024320,
+    "source": {
+      "blocks": "7c58de666658df1bb447d010132aa3914c10f41e",
+      "gui": "a2946eeb9a9dca7857d7ab53d766b54288c7a2ff",
+      "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+      "buildFiles": {
+        "blockly_compressed_vertical.js": "db3e5c641e10e1332be0e618499dfdab5a57a036057404007e38a7425df28b12",
+        "blocks_compressed.js": "f651fa9d00634a8bd1e1fd78741713f43bcb333b42325c79d3ab789d08815443",
+        "blocks_compressed_vertical.js": "c28275d2c884d3c6a4acff1f9035324eaeac469d02327527a0e1cae390a3d28d",
+        "msg/messages.js": "13c2c78be7d4399af59f56b3e70c65d029bcf5fc62b4caa3244ae5909ab6d7c0",
+        "msg/scratch_msgs.js": "3319dad7084beeedd60b8fd219779c6685bad42164780e72ec8822b018be7cab"
+      },
+      "catalog": {
+        "bundleSha256": "5a27d129162206b6001dce9a81964bf13b1254c8ee8a537710c52561ea9bd997",
+        "lockSha256": "d893f31c80e6654c6929735ed87557631ad9fce2f6742e2dad91db806231fbb8",
+        "contextSha256": "0a8b5af84575055cdabc6a773145872ae2ca36ad45373533234b364f9c11b17e",
+        "preparationSha256": "2e3d7debc35d3227ab84f209c7bb0daf9052eec6dd876b26a8ff3680504e4c32",
+        "randomSeed": 1299149929,
+        "browser": "153.0.8010.36",
+        "protocol": 3
+      }
+    }
+  },
+  "probe": {
+    "width": 1280,
+    "height": 720,
+    "r_frame_rate": "30/1",
+    "duration": "4.600000",
+    "nb_read_frames": "138"
+  }
+}

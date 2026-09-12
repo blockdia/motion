@@ -1,7 +1,9 @@
-import { defineTutorial } from '@blockdia-motion/authoring';
+import { defaultProject, defineTutorial } from '@blockdia-motion/authoring';
 export default defineTutorial({
   schemaVersion: 1,
   adapter: 'turbowarp',
+  project: defaultProject(),
+  initialTarget: 'sprite',
   viewport: { width: 1280, height: 720 },
   defaults: { theme: 'light', locale: 'zh-CN' },
   build(scene) {

@@ -1,12 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compile, defineTutorial, parseTutorial } from '../packages/authoring/dist/index.js';
+import {
+  compile,
+  defineTutorial,
+  parseTutorial,
+  defaultProject,
+} from '../packages/authoring/dist/index.js';
 import { evaluate, frameCount, assertResources, descendants } from '../packages/core/dist/index.js';
 import { resolveField } from '../packages/adapter-turbowarp/dist/index.js';
 import { frameSvg } from '../packages/renderer-browser/dist/index.js';
 const spec = (steps) => ({
   schemaVersion: 1,
   adapter: 'turbowarp',
+  project: defaultProject(),
+  initialTarget: 'sprite',
   viewport: { width: 1280, height: 720 },
   defaults: { theme: 'light', locale: 'zh-CN' },
   steps,
@@ -35,6 +42,8 @@ function mockAdapter() {
     chrome: '',
     layout: {
       blockScale: 0.675,
+      toolboxPadding: 4,
+      stackGap: 30,
       workspace: { x: 311, y: 93, width: 470, height: 589 },
       toolbox: { x: 61, y: 93, width: 250, height: 590 },
       editor: { x: 61, y: 93, width: 720, height: 590 },
@@ -121,7 +130,26 @@ function mockAdapter() {
     manifest.resources[key] = resource;
     return key;
   };
-  const adapter = { manifest, prepare, prepareInput, field: resolveField };
+  manifest.project = defaultProject();
+  manifest.targets = Object.fromEntries(
+    manifest.project.targets.map((t) => [
+      t.id,
+      {
+        categories: manifest.categories,
+        toolbox: manifest.toolbox,
+        contentHeight: 1800,
+        decorations: [],
+        xml: '',
+      },
+    ]),
+  );
+  const adapter = {
+    manifest,
+    selectTarget: async () => {},
+    prepare,
+    prepareInput,
+    field: resolveField,
+  };
   return adapter;
 }
 async function setup() {
@@ -130,7 +158,7 @@ async function setup() {
     ['events.whenFlagClicked', 'events', hat('entry'), 138],
     ['motion.moveSteps', 'motion', move('entry'), 900],
   ])
-    a.manifest.toolbox.push({
+    a.manifest.targets.sprite.toolbox.push({
       key,
       category,
       definition,
@@ -197,8 +225,11 @@ test('semantic drag reveals offscreen source, preserves toolbox, joins once, sub
   assert.equal(final.nodes.length, 1);
   assert.equal(result.finalBlocks[0].next.id, 'move');
   assert.equal(result.finalBlocks[0].next.inputs.STEPS.shadow.fields.NUM, '2000');
-  assert.equal(result.manifest.toolbox.length, 2);
-  assert.equal(result.manifest.toolbox[1].definition.inputs.STEPS.shadow.fields.NUM, '10');
+  assert.equal(result.manifest.targets.sprite.toolbox.length, 2);
+  assert.equal(
+    result.manifest.targets.sprite.toolbox[1].definition.inputs.STEPS.shadow.fields.NUM,
+    '10',
+  );
   const roots = result.manifest.resources[final.nodes[0].asset].anchors;
   assert.deepEqual(roots.hat.connections.next, roots.move.connections.previous);
   assert.equal(roots['move.STEPS'].fields.NUM.width, 40);
@@ -362,6 +393,75 @@ test('reveal is idempotent once visible and input schema rejects cycles/callback
   cyclic.steps.push({ op: 'sequence', steps: cyclic.steps });
   assert.throws(() => parseTutorial(cyclic), /SCHEMA/);
   assert.throws(() => parseTutorial(spec([{ op: 'wait', duration: () => 1 }])), /SCHEMA/);
+});
+
+test('continuous toolbox reveal skips category navigation for an already visible neighbour', async () => {
+  const adapter = await setup();
+  const before = await compile(spec([{ op: 'wait', duration: 0.1 }]), adapter);
+  const after = await compile(
+    spec([
+      { op: 'reveal', entry: 'events.whenFlagClicked' },
+      { op: 'wait', duration: 0.1 },
+    ]),
+    adapter,
+  );
+  assert.equal(after.duration, before.duration);
+  assert.deepEqual(after.tracks, []);
+  assert.equal(after.initial.toolbox.category, 'motion');
+});
+
+test('project schema and adapter context reject ambiguity without depending on property order', async () => {
+  const adapter = await setup();
+  const tutorial = spec([{ op: 'wait', duration: 0.1 }]);
+  tutorial.project.targets = tutorial.project.targets.map((t) =>
+    Object.fromEntries(Object.entries(t).reverse()),
+  );
+  await compile(tutorial, adapter);
+  for (const change of [
+    (p) => {
+      p.targets[1].id = p.targets[0].id;
+    },
+    (p) => {
+      p.targets[1].isStage = true;
+    },
+    (p) => {
+      p.targets[1].costumes = [];
+    },
+    (p) => {
+      p.targets[1].id = '__proto__';
+    },
+  ]) {
+    const invalid = structuredClone(tutorial);
+    change(invalid.project);
+    assert.throws(() => parseTutorial(invalid), /SCHEMA/);
+  }
+  await assert.rejects(
+    () =>
+      compile(
+        spec([
+          { op: 'selectTarget', targetId: 'constructor' },
+          { op: 'wait', duration: 1 },
+        ]),
+        adapter,
+      ),
+    /TARGET/,
+  );
+  await assert.rejects(
+    () =>
+      compile(
+        spec([
+          {
+            op: 'parallel',
+            steps: [
+              { op: 'selectTarget', targetId: 'stage' },
+              { op: 'wait', duration: 1 },
+            ],
+          },
+        ]),
+        adapter,
+      ),
+    /PARALLEL_CONFLICT/,
+  );
 });
 test('render namespaces isolate theme selectors and SVG references; corrupt compiled metadata fails', async () => {
   const a = await setup();

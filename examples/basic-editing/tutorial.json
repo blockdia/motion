@@ -97,5 +97,32 @@
         }
       ]
     }
-  ]
+  ],
+  "project": {
+    "targets": [
+      {
+        "id": "stage",
+        "name": "舞台",
+        "isStage": true,
+        "x": 0,
+        "y": 0,
+        "costumes": ["背景1"],
+        "sounds": [],
+        "variables": [],
+        "procedures": []
+      },
+      {
+        "id": "sprite",
+        "name": "角色1",
+        "isStage": false,
+        "x": 0,
+        "y": 0,
+        "costumes": ["造型1"],
+        "sounds": [],
+        "variables": [],
+        "procedures": []
+      }
+    ]
+  },
+  "initialTarget": "sprite"
 }

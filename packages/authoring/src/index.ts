@@ -2,6 +2,7 @@ export * from './spec.js';
 import { parseTutorial } from './spec.js';
 import {
   descendants,
+  canonicalJson,
   fail,
   assertResources,
   type BlockDefinition,
@@ -19,6 +20,8 @@ import {
 type Root = { block: BlockDefinition; node: VisualNode };
 type Context = {
   roots: Map<string, Root>;
+  targetId: string;
+  toolboxes: Map<string, SceneState['toolbox']>;
   cursor: SceneState['cursor'];
   toolbox: SceneState['toolbox'];
   events: Event[];
@@ -35,17 +38,33 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     manifest.viewport.height !== spec.viewport.height
   )
     fail('ADAPTER', 'tutorial', 'Adapter layout or locale mismatch');
+  if (canonicalJson(manifest.project) !== canonicalJson(spec.project))
+    fail('CONTEXT', 'tutorial', 'Adapter project context mismatch; prepare this project');
+  const catalogFor = (id: string) => {
+    const catalog = Object.hasOwn(manifest.targets, id) ? manifest.targets[id] : undefined;
+    if (!catalog) fail('TARGET', 'tutorial', `Missing catalog for ${id}`);
+    return catalog;
+  };
+  await adapter.selectTarget(spec.initialTarget);
   const initial: SceneState = {
+    targetId: spec.initialTarget,
     nodes: [],
     cursor: {
       x: manifest.layout.workspace.x + manifest.layout.workspace.width / 2,
       y: manifest.layout.workspace.y + manifest.layout.workspace.height / 2,
       pressed: false,
     },
-    toolbox: { category: manifest.categories[0]?.key ?? '', scroll: 0 },
+    toolbox: { category: catalogFor(spec.initialTarget).categories[0]?.key ?? '', scroll: 0 },
   };
   const context: Context = {
     roots: new Map(),
+    targetId: initial.targetId,
+    toolboxes: new Map(
+      spec.project.targets.map((t) => [
+        t.id,
+        { category: catalogFor(t.id).categories[0]?.key ?? '', scroll: 0 },
+      ]),
+    ),
     cursor: { ...initial.cursor },
     toolbox: { ...initial.toolbox },
     events: [],
@@ -53,15 +72,25 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     touched: new Set(),
   };
   const scale = manifest.layout.blockScale;
-  function entry(key: string, path: string): ToolboxEntry {
-    const found = manifest.toolbox.find((e) => e.key === key);
+  function entry(c: Context, key: string, path: string): ToolboxEntry {
+    const found = catalogFor(c.targetId).toolbox.find(
+      (e) => e.key === key || e.aliases?.includes(key),
+    );
     if (!found) fail('TOOLBOX_ENTRY', path, `Unknown entry ${key}`);
     return found;
   }
   function locate(c: Context, id: string, path: string) {
     for (const root of c.roots.values()) {
       const block = descendants(root.block).find((b) => b.id === id);
-      if (block) return { root, block };
+      if (block) {
+        if (root.node.targetId !== c.targetId)
+          fail(
+            'TARGET_SCOPE',
+            path,
+            `Block ${id} belongs to ${root.node.targetId}, current target is ${c.targetId}`,
+          );
+        return { root, block };
+      }
     }
     return fail('TARGET', path, `Block ${id} does not exist at this step`);
   }
@@ -108,7 +137,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     emit(c, start + duration, path, { cursor: c.cursor });
   }
   async function select(c: Context, category: string, t: number, duration: number, path: string) {
-    const cat = manifest.categories.find((x) => x.key === category);
+    const cat = catalogFor(c.targetId).categories.find((x) => x.key === category);
     if (!cat) fail('CATEGORY', path, `Unsupported category ${category}`);
     c.touched.add('toolbox');
     cursor(
@@ -124,22 +153,43 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       'easeInOut',
       false,
     );
-    c.toolbox = { category, scroll: 0 };
+    const scroll = Math.min(
+      cat.scroll ?? 0,
+      Math.max(0, catalogFor(c.targetId).contentHeight - manifest.layout.toolbox.height),
+    );
+    if (scroll !== c.toolbox.scroll)
+      c.tracks.push({
+        kind: 'scroll',
+        start: t,
+        end: t + duration,
+        step: path,
+        easing: 'easeInOut',
+        from: c.toolbox.scroll,
+        to: scroll,
+      });
+    c.toolbox = { category, scroll };
     emit(c, t + duration, path, { toolbox: c.toolbox });
     return t + duration;
   }
   async function reveal(c: Context, key: string, t: number, duration: number, path: string) {
-    const e = entry(key, path);
+    const e = entry(c, key, path);
     c.touched.add('toolbox');
-    if (c.toolbox.category !== e.category)
-      t = await select(c, e.category, t, 0.25, `${path}:category`);
     const box = asset(e.asset, path).box,
       view = manifest.layout.toolbox;
     const top = e.position.y + box.y * scale,
       height = box.height * scale;
+    const inset = manifest.layout.toolboxPadding;
+    const visibleHeight = Math.min(height, view.height - inset * 2);
+    const visible = () =>
+      top - c.toolbox.scroll >= view.y + inset &&
+      top + visibleHeight - c.toolbox.scroll <= view.y + view.height - inset;
+    // A continuous flyout can already expose entries belonging to a neighbouring category.
+    if (visible()) return t;
+    if (c.toolbox.category !== e.category)
+      t = await select(c, e.category, t, 0.25, `${path}:category`);
     let scroll = c.toolbox.scroll;
-    if (top - scroll < view.y + 40 || top + height - scroll > view.y + view.height - 12)
-      scroll = Math.max(0, top - view.y - 48);
+    if (!visible()) scroll = Math.max(0, top - view.y - inset);
+    scroll = Math.min(scroll, Math.max(0, catalogFor(c.targetId).contentHeight - view.height));
     if (scroll !== c.toolbox.scroll) {
       c.tracks.push({
         kind: 'scroll',
@@ -276,6 +326,14 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       return t;
     }
     if (s.op === 'parallel') {
+      function switches(step: Step): boolean {
+        return (
+          step.op === 'selectTarget' ||
+          ((step.op === 'parallel' || step.op === 'sequence') && step.steps.some(switches))
+        );
+      }
+      if (s.steps.some(switches))
+        fail('PARALLEL_CONFLICT', path, 'Target switching must be sequenced');
       const branches: { context: Context; end: number }[] = [];
       for (const [i, child] of s.steps.entries()) {
         const branch: Context = {
@@ -308,6 +366,16 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       return Math.max(t, ...branches.map((b) => b.end));
     }
     if (s.op === 'wait') return t + s.duration;
+    if (s.op === 'selectTarget') {
+      catalogFor(s.targetId);
+      c.toolboxes.set(c.targetId, { ...c.toolbox });
+      c.targetId = s.targetId;
+      c.toolbox = { ...c.toolboxes.get(s.targetId)! };
+      await adapter.selectTarget(s.targetId);
+      emit(c, t, path, { targetId: c.targetId, toolbox: c.toolbox });
+      return t;
+    }
+    await adapter.selectTarget(c.targetId);
     const duration =
       s.duration ??
       (s.op === 'type' ? 0.8 : s.op === 'selectCategory' || s.op === 'reveal' ? 0.25 : 1);
@@ -432,8 +500,10 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       return place(c, root, s.to, t, duration, path, easing, true);
     }
     if (s.op === 'dragFromToolbox') {
-      const source = entry(s.entry, path),
+      const source = entry(c, s.entry, path),
         def = structuredClone(source.definition);
+      if (source.capability && !source.capability.drag)
+        fail('CAPABILITY', path, source.capability.reason ?? 'Entry cannot be dragged');
       const original = def.id;
       for (const b of descendants(def))
         b.id = b.id === original ? s.id : `${s.id}${b.id.slice(original.length)}`;
@@ -448,7 +518,14 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       t += 0.2;
       const moving: Root = {
         block: def,
-        node: { id: def.id, asset: key, ...point, opacity: 1, dragging: true },
+        node: {
+          targetId: c.targetId,
+          id: def.id,
+          asset: key,
+          ...point,
+          opacity: 1,
+          dragging: true,
+        },
       };
       return place(c, moving, s.to, t, duration, path, easing, true);
     }
@@ -470,6 +547,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
         const moving: Root = {
           block: def,
           node: {
+            targetId: c.targetId,
             id: def.id,
             asset: key,
             x: point.x,
@@ -484,7 +562,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
           c.roots.set(def.id, moving);
           emit(c, t, path, { nodes: [moving.node] });
         } else await place(c, moving, s.to, t, duration, path, easing, false);
-        offset += (asset(key, path).box.height + 30) * scale;
+        offset += (asset(key, path).box.height + manifest.layout.stackGap) * scale;
       }
       return t + duration;
     }
@@ -503,6 +581,14 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     events: context.events.sort((a, b) => a.time - b.time),
     tracks: context.tracks,
     finalBlocks: [...context.roots.values()].map((r) => r.block),
+    finalTargets: Object.fromEntries(
+      spec.project.targets.map((target) => [
+        target.id,
+        [...context.roots.values()]
+          .filter((r) => r.node.targetId === target.id)
+          .map((r) => r.block),
+      ]),
+    ),
   };
   assertResources(result);
   return result;

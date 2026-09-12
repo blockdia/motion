@@ -35,7 +35,7 @@ function target(value: unknown, path: string, field = false) {
     fail('SCHEMA', path, 'Expected workspaceSlot or connection');
 }
 function block(value: unknown, path: string) {
-  const o = object(value, path, ['id', 'opcode', 'fields', 'inputs', 'next']);
+  const o = object(value, path, ['id', 'opcode', 'fields', 'inputs', 'next', 'mutation']);
   string(o.id, path);
   string(o.opcode, path);
   if (!/^[A-Za-z][A-Za-z0-9_.:-]*$/.test(o.id))
@@ -58,6 +58,7 @@ function block(value: unknown, path: string) {
       block(i.shadow ?? i.block, `${path}.inputs.${k}`);
     }
   }
+  if (o.mutation !== undefined) string(o.mutation, path + '.mutation');
   if (o.next !== undefined) block(o.next, `${path}.next`);
 }
 function step(value: unknown, path: string) {
@@ -73,6 +74,7 @@ function step(value: unknown, path: string) {
     move: ['id', 'to', 'duration', 'easing'],
     connect: ['id', 'to', 'duration', 'easing'],
     type: ['target', 'value', 'duration', 'easing'],
+    selectTarget: ['targetId'],
     selectCategory: ['category', 'duration'],
     reveal: ['entry', 'duration'],
   };
@@ -94,7 +96,8 @@ function step(value: unknown, path: string) {
   } else if (op === 'type') {
     target(o.target, path, true);
     if (typeof o.value !== 'string') fail('SCHEMA', path, 'Expected text value');
-  } else if (op === 'selectCategory') string(o.category, path);
+  } else if (op === 'selectTarget') string(o.targetId, path);
+  else if (op === 'selectCategory') string(o.category, path);
   else if (op === 'reveal') string(o.entry, path);
   else {
     target(o.to, path);
@@ -133,6 +136,8 @@ export function parseTutorial(value: unknown): TutorialSpec {
     'viewport',
     'defaults',
     'steps',
+    'project',
+    'initialTarget',
   ]);
   if (o.schemaVersion !== 1 || o.adapter !== 'turbowarp')
     fail('SCHEMA', 'tutorial', 'Expected schemaVersion 1 and turbowarp adapter');
@@ -142,12 +147,110 @@ export function parseTutorial(value: unknown): TutorialSpec {
   const d = object(o.defaults, 'defaults', ['theme', 'locale']);
   if (d.theme !== 'light' || d.locale !== 'zh-CN')
     fail('UNSUPPORTED', 'defaults', 'P1b supports light / zh-CN');
+  validateProject(o.project);
+  string(o.initialTarget, 'initialTarget');
+  if (
+    !(o.project as import('@blockdia-motion/core').ProjectContext).targets.some(
+      (t) => t.id === o.initialTarget,
+    )
+  )
+    fail('TARGET', 'initialTarget', 'Unknown initial target');
   array(o.steps, 'steps');
   o.steps.forEach((s, i) => step(s, `steps[${i}]`));
   return structuredClone(value) as TutorialSpec;
 }
+export function validateProject(
+  value: unknown,
+): asserts value is import('@blockdia-motion/core').ProjectContext {
+  const p = object(value, 'project', ['targets']);
+  array(p.targets, 'project.targets');
+  const ids = new Set<string>(),
+    variableIds = new Set<string>(),
+    names = new Set<string>();
+  let stages = 0;
+  for (const [i, item] of p.targets.entries()) {
+    const path = `project.targets[${i}]`;
+    const t = object(item, path, [
+      'id',
+      'name',
+      'isStage',
+      'x',
+      'y',
+      'costumes',
+      'sounds',
+      'variables',
+      'procedures',
+    ]);
+    string(t.id, path);
+    string(t.name, path);
+    if (!/^[A-Za-z][A-Za-z0-9_.:-]*$/.test(t.id)) fail('SCHEMA', path, 'Invalid target ID');
+    if (ids.has(t.id) || names.has(t.name)) fail('SCHEMA', path, 'Duplicate target ID or name');
+    ids.add(t.id);
+    names.add(t.name);
+    if (typeof t.isStage !== 'boolean') fail('SCHEMA', path, 'Expected isStage');
+    if (t.isStage) stages++;
+    for (const k of ['x', 'y'])
+      if (typeof t[k] !== 'number' || !Number.isFinite(t[k]))
+        fail('SCHEMA', path, 'Explicit finite target position required');
+    for (const k of ['costumes', 'sounds', 'variables', 'procedures'])
+      if (!Array.isArray(t[k])) fail('SCHEMA', path, `Expected ${k} array`);
+    if (!(t.costumes as unknown[]).length)
+      fail('SCHEMA', path, 'At least one named costume/backdrop is required by the editor');
+    for (const k of ['costumes', 'sounds']) {
+      const a = t[k] as unknown[];
+      a.forEach((x) => string(x, path));
+      if (new Set(a).size !== a.length) fail('SCHEMA', path, `Duplicate ${k} name`);
+    }
+    const variableNames = new Set<string>();
+    for (const v of t.variables as unknown[]) {
+      const d = object(v, path, ['id', 'name', 'type']);
+      string(d.id, path);
+      string(d.name, path);
+      if (variableIds.has(d.id))
+        fail('SCHEMA', path, 'Variable IDs must be unique across the project');
+      variableIds.add(d.id);
+      const named = `${d.type}:${d.name}`;
+      if (variableNames.has(named)) fail('SCHEMA', path, 'Duplicate variable name and type');
+      variableNames.add(named);
+      if (!['', 'list', 'broadcast_msg'].includes(d.type as string))
+        fail('UNSUPPORTED', path, 'Unsupported variable type');
+      if (d.type === 'broadcast_msg' && !t.isStage)
+        fail('SCHEMA', path, 'Broadcasts belong to the stage');
+    }
+    const codes = new Set<string>();
+    for (const v of t.procedures as unknown[]) {
+      const d = object(v, path, [
+        'code',
+        'argumentIds',
+        'argumentNames',
+        'argumentDefaults',
+        'warp',
+      ]);
+      string(d.code, path);
+      if (codes.has(d.code)) fail('SCHEMA', path, 'Duplicate procedure code');
+      codes.add(d.code);
+      const count = (d.code.match(/%[bsn]/g) ?? []).length;
+      for (const k of ['argumentIds', 'argumentNames', 'argumentDefaults']) {
+        if (
+          !Array.isArray(d[k]) ||
+          (d[k] as unknown[]).length !== count ||
+          (d[k] as unknown[]).some((x) => typeof x !== 'string')
+        )
+          fail('SCHEMA', path, 'Procedure argument metadata mismatch');
+      }
+      if (new Set(d.argumentIds as string[]).size !== count || typeof d.warp !== 'boolean')
+        fail('SCHEMA', path, 'Invalid procedure arguments or warp');
+    }
+  }
+  if (stages !== 1 || !(p.targets[0] as { isStage: boolean }).isStage)
+    fail('SCHEMA', 'project', 'Declare exactly one stage as the first target');
+}
+export { defaultProject } from '@blockdia-motion/core';
 type Timing = { duration?: number; easing?: Ease };
 export class SceneBuilder {
+  selectTarget(targetId: string): Step {
+    return { op: 'selectTarget', targetId };
+  }
   ref(id: string) {
     return {
       id,

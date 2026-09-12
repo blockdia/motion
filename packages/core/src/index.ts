@@ -1,11 +1,75 @@
 export type Point = { x: number; y: number };
 export type Rect = Point & { width: number; height: number };
 export type Ease = 'linear' | 'easeInOut';
+/** Stable JSON representation for context equality and content-addressed resources. */
+export function canonicalJson(value: unknown): string {
+  function sorted(value: unknown): unknown {
+    if (Array.isArray(value)) return value.map(sorted);
+    if (value && typeof value === 'object')
+      return Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map((k) => [k, sorted((value as Record<string, unknown>)[k])]),
+      );
+    return value;
+  }
+  return JSON.stringify(sorted(value));
+}
+export interface ProjectContext {
+  targets: ProjectTarget[];
+}
+export interface ProjectTarget {
+  id: string;
+  name: string;
+  isStage: boolean;
+  x: number;
+  y: number;
+  costumes: string[];
+  sounds: string[];
+  variables: { id: string; name: string; type: '' | 'list' | 'broadcast_msg' }[];
+  procedures: {
+    code: string;
+    argumentIds: string[];
+    argumentNames: string[];
+    argumentDefaults: string[];
+    warp: boolean;
+  }[];
+}
+/** An explicit empty project; callers may replace every part before preparing. */
+export function defaultProject(): ProjectContext {
+  return {
+    targets: [
+      {
+        id: 'stage',
+        name: '舞台',
+        isStage: true,
+        x: 0,
+        y: 0,
+        costumes: ['背景1'],
+        sounds: [],
+        variables: [],
+        procedures: [],
+      },
+      {
+        id: 'sprite',
+        name: '角色1',
+        isStage: false,
+        x: 0,
+        y: 0,
+        costumes: ['造型1'],
+        sounds: [],
+        variables: [],
+        procedures: [],
+      },
+    ],
+  };
+}
 export interface BlockDefinition {
   id: string;
   opcode: string;
   fields?: Record<string, string>;
   inputs?: Record<string, { shadow?: BlockDefinition; block?: BlockDefinition }>;
+  mutation?: string;
   next?: BlockDefinition;
 }
 export type Destination =
@@ -45,11 +109,14 @@ export type Step =
       duration?: number;
       easing?: Ease;
     }
+  | { op: 'selectTarget'; targetId: string }
   | { op: 'selectCategory'; category: string; duration?: number }
   | { op: 'reveal'; entry: string; duration?: number };
 export interface TutorialSpec {
   schemaVersion: 1;
   adapter: 'turbowarp';
+  project: ProjectContext;
+  initialTarget: string;
   viewport: { width: 1280; height: 720 };
   defaults: { theme: 'light'; locale: 'zh-CN' };
   steps: Step[];
@@ -90,13 +157,49 @@ export interface ToolboxEntry {
   key: string;
   category: string;
   definition: BlockDefinition;
+  aliases?: string[];
+  capability?: { prepare: boolean; drag: boolean; reason?: string };
+  metadata?: Record<
+    string,
+    {
+      fields: Record<
+        string,
+        { value: string; kind: string; options?: [string, string][]; actions?: string[] }
+      >;
+      inputs: string[];
+      connections: string[];
+    }
+  >;
   asset: string;
   position: Point;
+}
+export interface TargetCatalog {
+  categories: { key: string; label: string; y: number; scroll?: number; color?: string }[];
+  toolbox: ToolboxEntry[];
+  decorations: {
+    kind: 'label' | 'button' | 'separator' | 'checkbox';
+    text: string;
+    position: Point;
+    width: number;
+    height: number;
+    callback?: string;
+  }[];
+  contentHeight: number;
+  xml: string;
 }
 export interface Manifest {
   schemaVersion: 1;
   adapter: string;
   source: {
+    catalog?: {
+      bundleSha256: string;
+      lockSha256: string;
+      contextSha256: string;
+      preparationSha256: string;
+      randomSeed: number;
+      browser: string;
+      protocol: number;
+    };
     blocks: string;
     gui: string;
     fontSha256: string;
@@ -112,13 +215,16 @@ export interface Manifest {
     editor: Rect;
     categories: Rect;
     blockScale: number;
+    toolboxPadding: number;
+    stackGap: number;
   };
+  project: ProjectContext;
+  targets: Record<string, TargetCatalog>;
   slots: Record<string, Point>;
-  categories: { key: string; label: string; y: number }[];
-  toolbox: ToolboxEntry[];
   resources: Record<string, Resource>;
 }
 export type VisualNode = Point & {
+  targetId: string;
   id: string;
   asset: string;
   opacity: number;
@@ -129,6 +235,7 @@ export interface ToolboxState {
   scroll: number;
 }
 export interface SceneState {
+  targetId: string;
   nodes: VisualNode[];
   cursor: Point & { pressed: boolean };
   toolbox: ToolboxState;
@@ -136,6 +243,7 @@ export interface SceneState {
 export interface Event {
   time: number;
   step: string;
+  targetId?: string;
   remove?: string[];
   nodes?: VisualNode[];
   cursor?: SceneState['cursor'];
@@ -167,6 +275,7 @@ export interface CompiledScene {
   events: Event[];
   tracks: Track[];
   finalBlocks: BlockDefinition[];
+  finalTargets: Record<string, BlockDefinition[]>;
 }
 export interface Snapshot extends SceneState {
   time: number;
@@ -196,6 +305,7 @@ export function descendants(block: BlockDefinition): BlockDefinition[] {
 }
 export interface PreparationAdapter {
   manifest: Manifest;
+  selectTarget(targetId: string): Promise<void>;
   prepare(block: BlockDefinition, step: string): Promise<string>;
   prepareInput(
     block: BlockDefinition,
@@ -223,6 +333,7 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
     if (event.time > t) break;
     event.remove?.forEach((id) => nodes.delete(id));
     event.nodes?.forEach((n) => nodes.set(n.id, { ...n }));
+    if (event.targetId) state.targetId = event.targetId;
     if (event.cursor) state.cursor = { ...event.cursor };
     if (event.toolbox) state.toolbox = { ...event.toolbox };
   }
@@ -258,7 +369,7 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
       };
     }
   }
-  state.nodes = [...nodes.values()];
+  state.nodes = [...nodes.values()].filter((n) => n.targetId === state.targetId);
   for (const node of state.nodes)
     if (!scene.manifest.resources[node.asset])
       fail('RESOURCE', 'evaluate', `Missing resource ${node.asset}`);
@@ -284,8 +395,11 @@ export function assertResources(scene: CompiledScene): void {
     fail('SCHEMA', 'scene', 'Invalid compiled timeline');
   if (
     !m.resources ||
-    !Array.isArray(m.toolbox) ||
-    !Array.isArray(m.categories) ||
+    !m.project ||
+    !Array.isArray(m.project.targets) ||
+    !m.targets ||
+    typeof m.targets !== 'object' ||
+    !Object.hasOwn(m.targets, scene.initial?.targetId) ||
     typeof m.theme !== 'string' ||
     typeof m.chrome !== 'string' ||
     typeof m.source?.fontSha256 !== 'string'
@@ -310,7 +424,12 @@ export function assertResources(scene: CompiledScene): void {
     !rect(m.layout.toolbox) ||
     !rect(m.layout.editor) ||
     !(m.layout.blockScale > 0) ||
-    !Number.isFinite(m.layout.blockScale)
+    !Number.isFinite(m.layout.blockScale) ||
+    !Number.isFinite(m.layout.toolboxPadding) ||
+    m.layout.toolboxPadding < 0 ||
+    m.layout.toolboxPadding * 2 >= m.layout.toolbox.height ||
+    !Number.isFinite(m.layout.stackGap) ||
+    m.layout.stackGap < 0
   )
     fail('SCHEMA', 'manifest', 'Invalid layout');
   function resource(key: string) {
@@ -327,6 +446,8 @@ export function assertResources(scene: CompiledScene): void {
       n.opacity > 1
     )
       fail('SCHEMA', 'scene', 'Invalid visual node');
+    if (!Object.hasOwn(m.targets, n.targetId))
+      fail('TARGET', 'scene', `Unknown node target ${n.targetId}`);
     resource(n.asset);
   }
   if (
@@ -346,6 +467,8 @@ export function assertResources(scene: CompiledScene): void {
     )
       fail('SCHEMA', 'scene', 'Events must be sorted within duration');
     previousTime = event.time;
+    if (event.targetId !== undefined && !Object.hasOwn(m.targets, event.targetId))
+      fail('TARGET', 'scene', 'Unknown switched target');
     if (event.nodes !== undefined) {
       if (!Array.isArray(event.nodes)) fail('SCHEMA', 'scene', 'Invalid event nodes');
       event.nodes.forEach(node);
@@ -407,7 +530,27 @@ export function assertResources(scene: CompiledScene): void {
       }
     } else fail('SCHEMA', 'scene', 'Unsupported animation kind');
   }
-  for (const entry of m.toolbox) {
+  for (const target of m.project.targets) {
+    const catalog = m.targets[target.id];
+    if (
+      !catalog ||
+      !Array.isArray(catalog.toolbox) ||
+      !Array.isArray(catalog.categories) ||
+      !Array.isArray(catalog.decorations) ||
+      !Number.isFinite(catalog.contentHeight) ||
+      catalog.contentHeight < 0
+    )
+      fail('SCHEMA', 'catalog', `Invalid target catalog ${target.id}`);
+    const keys = new Set<string>();
+    for (const entry of catalog.toolbox) {
+      if (keys.has(entry.key)) fail('SCHEMA', 'catalog', 'Duplicate entry identity');
+      keys.add(entry.key);
+    }
+    for (const d of catalog.decorations)
+      if (!rect({ ...d.position, width: d.width, height: d.height }))
+        fail('SCHEMA', 'catalog', 'Invalid decoration bounds');
+  }
+  for (const entry of Object.values(m.targets).flatMap((t) => t.toolbox)) {
     if (!point(entry.position)) fail('SCHEMA', 'toolbox', 'Invalid entry position');
     resource(entry.asset);
   }

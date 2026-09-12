@@ -9,6 +9,7 @@ const input = (x, y, width, height = 32) =>
 export function chrome({
   toolboxHeadings = true,
   availableCategories = null,
+  toolboxScrollbar = true,
 } = {}) {
   const categories = [
     ["运动", "#4c97ff"],
@@ -53,7 +54,7 @@ export function chrome({
     (toolboxHeadings
       ? text(69, 122, "事件", 12) + text(69, 222, "运动", 12)
       : "") +
-    `<rect x="300" y="96" width="6" height="53" rx="3" fill="${c.scrollbar}"/><rect x="774" y="383" width="6" height="289" rx="3" fill="${c.scrollbar}"/><rect x="541" y="675" width="230" height="6" rx="3" fill="${c.scrollbar}"/>` +
+    (toolboxScrollbar ? `<rect x="300" y="96" width="6" height="53" rx="3" fill="${c.scrollbar}"/>` : "") + `<rect x="774" y="383" width="6" height="289" rx="3" fill="${c.scrollbar}"/><rect x="541" y="675" width="230" height="6" rx="3" fill="${c.scrollbar}"/>` +
     [0, 1, 2]
       .map(
         (i) =>

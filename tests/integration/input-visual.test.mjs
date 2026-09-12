@@ -21,10 +21,12 @@ const definition = {
 
 test('native Blockly input geometry and rendered editing states match, with complete toolbox hat', async () => {
   await mkdir(out, { recursive: true });
-  const adapter = await createAdapter();
+  const adapter = await createAdapter({ project: tutorial.project });
   let compiled;
   try {
-    const entry = adapter.manifest.toolbox.find((e) => e.key === 'events.whenFlagClicked');
+    const entry = adapter.manifest.targets.sprite.toolbox.find((e) =>
+      e.aliases.includes('events.whenFlagClicked'),
+    );
     assert.ok(
       entry.position.y +
         adapter.manifest.resources[entry.asset].box.y * adapter.manifest.layout.blockScale >=
@@ -78,8 +80,8 @@ test('native Blockly input geometry and rendered editing states match, with comp
       deviceScaleFactor: 1,
     });
     await native.goto(server.url + '/packages/asset-builder/prepare.html');
-    await native.evaluate(async () => {
-      await window.startPreparation({});
+    await native.evaluate(async (project) => {
+      await window.startPreparation(project);
       document.body.style.margin = '0';
       const style = document.createElement('style');
       style.textContent =
@@ -104,7 +106,7 @@ test('native Blockly input geometry and rendered editing states match, with comp
       B.WidgetDiv.DIV.style.transition = 'none';
       B.FieldTextInput.htmlInput_.style.transition = 'none';
       window.nativeInput = { B, ws, root, f };
-    });
+    }, tutorial.project);
     const motion = await browser.newPage({
       viewport: { width: 1280, height: 720 },
       deviceScaleFactor: 1,

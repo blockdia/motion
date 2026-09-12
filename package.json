@@ -15,7 +15,9 @@
     "motion": "node packages/cli/dist/index.js",
     "p1b": "pnpm build && node scripts/p1b.mjs",
     "test:integration": "pnpm build && node --test tests/integration/*.test.mjs",
-    "format:check": "prettier --check \"packages/**/*.{ts,js,json,html}\" \"apps/**/*.html\" \"examples/**/*.{ts,json}\" \"scripts/p1b.mjs\" \"tests/compiler.test.mjs\" \"tests/integration/*.test.mjs\" \"docs/p1b.md\""
+    "format:check": "prettier --check \"packages/**/*.{ts,js,json,html}\" \"apps/**/*.html\" \"examples/**/*.{ts,json}\" \"scripts/p1b.mjs\" \"tests/compiler.test.mjs\" \"tests/integration/*.test.mjs\" \"docs/p1b.md\" \"scripts/p1c*.mjs\" \"scripts/bootstrap-catalog.mjs\" \"tests/fixtures/*.mjs\" \"docs/p1c.md\"",
+    "p1c:bootstrap": "node scripts/bootstrap-catalog.mjs",
+    "p1c": "pnpm build && node scripts/p1c.mjs && node scripts/p1c-reference.mjs"
   },
   "engines": {
     "node": ">=22.18"

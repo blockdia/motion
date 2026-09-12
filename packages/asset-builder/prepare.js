@@ -1,6 +1,18 @@
 /* Preparation-only pinned Blockly bridge. SVG normalization follows P0. */
-window.startPreparation = async function (supported) {
+window.startPreparation = async function (project) {
+  // The pinned editor intentionally randomizes colour_picker defaults and generated IDs.
+  // A preparation-only seed makes those real defaults reproducible, without replacing definitions.
+  const originalRandom = Math.random;
+  let randomState = 0x4d6f7469;
+  Math.random = () => {
+    randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+    return randomState / 4294967296;
+  };
   const B = Blockly;
+  B.Events.disable();
+  B.recordSoundCallback = () => {};
+  const editor = window.createEditorContext(project);
+  let currentTarget;
   B.ScratchMsgs.setLocale('zh-cn');
   const font = new FontFace('Motion Sans', 'url(/font.ttf)');
   await font.load();
@@ -20,6 +32,7 @@ window.startPreparation = async function (supported) {
   const resources = {},
     paints = {};
   async function capture(key, root) {
+    const blockScale = root.workspace.scale;
     root.render();
     await new Promise(requestAnimationFrame);
     const original = root.getSvgRoot();
@@ -52,10 +65,10 @@ window.startPreparation = async function (supported) {
           const rootRect = original.getBoundingClientRect();
           anchor.fields[field.name] = {
             value: field.getValue(),
-            x: rect.x - rootRect.x + box.x,
-            y: rect.y - rootRect.y + box.y,
-            width: rect.width,
-            height: rect.height,
+            x: (rect.x - rootRect.x) / blockScale + box.x,
+            y: (rect.y - rootRect.y) / blockScale + box.y,
+            width: rect.width / blockScale,
+            height: rect.height / blockScale,
           };
         }
       anchors[block.id] = anchor;
@@ -123,21 +136,28 @@ window.startPreparation = async function (supported) {
       throw Error('Blockly connection rejected');
   }
   function instantiate(def, shadow = false) {
-    const rules = supported[def.opcode];
-    if (!Object.hasOwn(supported, def.opcode)) throw Error(`Unsupported opcode ${def.opcode}`);
-    const fields = Object.keys(def.fields || {}),
-      inputs = Object.keys(def.inputs || {});
-    if (fields.length !== rules.fields.length || fields.some((k) => !rules.fields.includes(k)))
-      throw Error(`Explicit fields required for ${def.opcode}: ${rules.fields}`);
-    if (inputs.length !== rules.inputs.length || inputs.some((k) => !rules.inputs.includes(k)))
-      throw Error(`Explicit inputs required for ${def.opcode}: ${rules.inputs}`);
+    if (!Object.hasOwn(B.Blocks, def.opcode)) throw Error(`Unsupported opcode ${def.opcode}`);
     const b = ws.newBlock(def.opcode, def.id);
+    if (def.mutation) {
+      const mutation = B.Xml.textToDom(`<xml>${def.mutation}</xml>`).firstElementChild;
+      if (mutation?.tagName !== 'mutation' || !b.domToMutation)
+        throw Error('CAPABILITY: Unsupported mutation');
+      b.domToMutation(mutation);
+    }
     if (b.id !== def.id) throw Error(`Blockly did not retain requested ID ${def.id}`);
     if (shadow) b.setShadow(true);
     b.initSvg();
     for (const [name, value] of Object.entries(def.fields || {})) {
       const f = b.getField(name);
       if (!f) throw Error(`Missing field ${def.id}.${name}`);
+      if (f.referencesVariables() && !ws.getVariableById(value))
+        throw Error(`Field variable is outside target context: ${value}`);
+      if (
+        f instanceof B.FieldDropdown &&
+        !f.referencesVariables() &&
+        !f.getOptions().some((o) => String(o[1]) === value)
+      )
+        throw Error(`Field option rejected ${def.id}.${name}: ${value}`);
       const validated = f.callValidator(value);
       if (validated === null) throw Error(`Field rejected ${def.id}.${name}: ${value}`);
       f.setValue(validated === undefined ? value : validated);
@@ -147,6 +167,10 @@ window.startPreparation = async function (supported) {
           `Field normalized ${def.id}.${name}: requested ${JSON.stringify(value)}, actual ${JSON.stringify(actual)}`,
         );
     }
+    const actualFields = b.inputList.flatMap((i) => i.fieldRow).filter((f) => f.name);
+    for (const f of actualFields)
+      if (!Object.hasOwn(def.fields || {}, f.name))
+        throw Error(`Explicit field required: ${def.id}.${f.name}`);
     for (const [name, input] of Object.entries(def.inputs || {})) {
       const child = instantiate(input.shadow || input.block, !!input.shadow);
       connect(b.getInput(name)?.connection, child.outputConnection || child.previousConnection);
@@ -156,12 +180,38 @@ window.startPreparation = async function (supported) {
     return b;
   }
   window.prepareBlock = async (key, def, editing) => {
-    ws.clear();
+    seedWorkspace(ws, currentTarget);
     try {
+      function xmlFor(def, tag = 'block') {
+        const xml = document.createElement(tag);
+        xml.setAttribute('type', def.opcode);
+        xml.setAttribute('id', def.id);
+        for (const [name, value] of Object.entries(def.fields || {})) {
+          const field = document.createElement('field');
+          field.setAttribute('name', name);
+          field.textContent = value;
+          xml.append(field);
+        }
+        for (const [name, input] of Object.entries(def.inputs || {})) {
+          const value = document.createElement('value');
+          value.setAttribute('name', name);
+          for (const [tag, child] of Object.entries(input)) value.append(xmlFor(child, tag));
+          xml.append(value);
+        }
+        if (def.next) {
+          const next = document.createElement('next');
+          next.append(xmlFor(def.next));
+          xml.append(next);
+        }
+        return xml;
+      }
+      editor.sync(xmlFor(def).outerHTML);
       const root = instantiate(def);
       if (editing) {
         const field = ws.getBlockById(editing.id)?.getField(editing.name);
         if (!field) throw Error(`Missing editing field ${editing.id}.${editing.name}`);
+        if (!(field instanceof B.FieldTextInput) || field instanceof B.FieldDropdown)
+          throw Error('CAPABILITY: type requires a text input field');
         // Match the real text editor, including transient setText (not final field validation).
         B.FieldTextInput.prototype.showEditor_.call(field, true);
         const input = B.FieldTextInput.htmlInput_;
@@ -220,9 +270,235 @@ window.startPreparation = async function (supported) {
       ws.clear();
     }
   };
+
+  function seedWorkspace(workspace, id) {
+    workspace.clear();
+    workspace.getVariableMap().clear();
+    const target = project.targets.find((t) => t.id === id);
+    if (!target) throw Error(`Unknown target ${id}`);
+    const stage = project.targets.find((t) => t.isStage);
+    for (const owner of target.isStage ? [stage] : [stage, target])
+      for (const v of owner.variables) {
+        const created = workspace.createVariable(v.name, v.type, v.id, !owner.isStage, false);
+        if (created.getId() !== v.id)
+          throw Error(
+            `CAPABILITY: Blockly cannot preserve variable identity ${v.id} (${v.name}) in this context`,
+          );
+      }
+    for (const [i, p] of target.procedures.entries()) {
+      const prototype = workspace.newBlock('procedures_prototype', `@context.procedure.${i}`);
+      const mutation = document.createElement('mutation');
+      for (const [name, value] of Object.entries({
+        proccode: p.code,
+        argumentids: JSON.stringify(p.argumentIds),
+        argumentnames: JSON.stringify(p.argumentNames),
+        argumentdefaults: JSON.stringify(p.argumentDefaults),
+        warp: String(p.warp),
+      }))
+        mutation.setAttribute(name, value);
+      prototype.domToMutation(mutation);
+      prototype.initSvg();
+      prototype.render();
+    }
+  }
+  window.selectPreparationTarget = (id) => {
+    currentTarget = id;
+    editor.select(id);
+  };
+  const catalogHost = document.createElement('div');
+  catalogHost.style.cssText = 'width:780px;height:590px';
+  document.body.append(catalogHost);
+  const catalogWs = B.inject(catalogHost, {
+    media: '/source/media/',
+    toolbox: '<xml><category name="Loading" id="loading"/></xml>',
+    sounds: false,
+    scrollbars: true,
+    zoom: { startScale: 0.675 },
+  });
+  // These buttons are visible but are not authoring operations in Motion.
+  for (const key of ['CREATE_VARIABLE', 'CREATE_LIST', 'CREATE_PROCEDURE', 'OPEN_RETURN_DOCS'])
+    catalogWs.registerButtonCallback(key, () => {});
+  function definitionFromXml(xml, id = 'entry') {
+    const definition = { id, opcode: xml.getAttribute('type') };
+    for (const child of xml.children) {
+      if (child.tagName.toLowerCase() === 'field') {
+        (definition.fields ??= {})[child.getAttribute('name')] =
+          child.getAttribute('id') || child.textContent;
+      } else if (child.tagName.toLowerCase() === 'mutation') {
+        definition.mutation = new XMLSerializer().serializeToString(child);
+      } else if (
+        child.tagName.toLowerCase() === 'value' ||
+        child.tagName.toLowerCase() === 'statement'
+      ) {
+        const name = child.getAttribute('name');
+        const input = {};
+        for (const nested of child.children)
+          if (['block', 'shadow'].includes(nested.tagName.toLowerCase()))
+            input[nested.tagName.toLowerCase()] = definitionFromXml(
+              nested,
+              `${id}.${name}.${nested.tagName.toLowerCase()}`,
+            );
+        if (Object.keys(input).length) (definition.inputs ??= {})[name] = input;
+      } else if (child.tagName.toLowerCase() === 'next' && child.firstElementChild)
+        definition.next = definitionFromXml(child.firstElementChild, `${id}.next`);
+    }
+    return definition;
+  }
+  window.extractCatalog = async (id) => {
+    window.selectPreparationTarget(id);
+    seedWorkspace(catalogWs, id);
+    const xml = editor.select(id);
+    catalogWs.updateToolbox(xml);
+    const flyout = catalogWs.getFlyout();
+    await new Promise(requestAnimationFrame);
+    // Match the GUI's live target-position defaults after toolbox construction.
+    const target = project.targets.find((t) => t.id === id);
+    for (const prefix of ['glide', 'move', 'set'])
+      for (const axis of ['x', 'y']) {
+        const block = flyout.workspace_.getBlockById(`${prefix}${axis}`);
+        if (block) block.setFieldValue(String(Math.round(target[axis])), 'NUM');
+      }
+    // Mirror the GUI's flyout block listener before asking VM-backed dependent menus.
+    editor.sync(
+      flyout.workspace_
+        .getTopBlocks(false)
+        .map((b) => B.Xml.domToText(B.Xml.blockToDom(b)))
+        .join(''),
+      true,
+    );
+    for (const block of flyout.workspace_.getAllBlocks())
+      for (const input of block.inputList)
+        for (const field of input.fieldRow) {
+          if (field instanceof B.FieldDropdown && !field.referencesVariables()) {
+            const options = field.getOptions();
+            if (
+              !options.some((o) => o[1] === field.getValue()) &&
+              typeof options[0]?.[1] === 'string'
+            )
+              field.setValue(options[0][1]);
+          }
+        }
+    flyout.reflow();
+    const scale = catalogWs.scale;
+    const cats = catalogWs.getToolbox().categoryMenu_.categories_;
+    const categories = flyout.categoryScrollPositions.map((c, i) => ({
+      key: c.categoryId,
+      label: B.utils.replaceMessageReferences(c.categoryName),
+      scroll: c.position * scale,
+      color: cats[i].colour_,
+    }));
+    const entries = [];
+    for (const [index, root] of flyout.workspace_
+      .getTopBlocks(false)
+      .sort((a, b) => a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y)
+      .entries()) {
+      const at = root.getRelativeToSurfaceXY();
+      const category = categories.filter((c) => c.scroll <= at.y * scale).at(-1)?.key;
+      const xmlBlock = B.Xml.blockToDom(root);
+      const definition = definitionFromXml(xmlBlock);
+      const mapping = {},
+        metadata = {};
+      function describe(block, def) {
+        mapping[block.id] = def.id;
+        const fields = {};
+        for (const input of block.inputList)
+          for (const f of input.fieldRow)
+            if (f.name) {
+              fields[f.name] = {
+                value: String(f.getValue()),
+                kind: f.referencesVariables()
+                  ? 'variable'
+                  : f instanceof B.FieldDropdown
+                    ? 'dropdown'
+                    : f instanceof B.FieldTextInput
+                      ? 'text'
+                      : 'other',
+              };
+              if (f instanceof B.FieldDropdown) {
+                fields[f.name].options = f
+                  .getOptions()
+                  .filter((o) => typeof o[1] === 'string')
+                  .map((o) => [typeof o[0] === 'string' ? o[0] : o[0].alt || '', o[1]]);
+                fields[f.name].actions = f
+                  .getOptions()
+                  .filter((o) => typeof o[1] === 'function')
+                  .map((o) => (typeof o[0] === 'string' ? o[0] : o[0].alt || ''));
+              }
+            }
+        metadata[def.id] = {
+          fields,
+          inputs: block.inputList.filter((i) => i.connection).map((i) => i.name),
+          connections: ['previous', 'next', 'output'].filter((n) => !!block[n + 'Connection']),
+        };
+        for (const [name, input] of Object.entries(def.inputs || {})) {
+          const child = block.getInputTargetBlock(name);
+          if (child) describe(child, input.block || input.shadow);
+        }
+        if (def.next) describe(block.getNextBlock(), def.next);
+      }
+      describe(root, definition);
+      const asset = `catalog-${id}-${index}`;
+      await capture(asset, root);
+      const resource = resources[asset];
+      resource.anchors = Object.fromEntries(
+        Object.entries(resource.anchors).map(([old, anchor]) => [mapping[old], anchor]),
+      );
+      entries.push({
+        category,
+        definition,
+        metadata,
+        resource,
+        position: { x: at.x * scale, y: at.y * scale },
+      });
+    }
+    const callbacks = cats.flatMap((category) => {
+      const content = category.getContents();
+      const nodes =
+        typeof content === 'string'
+          ? catalogWs.getToolboxCategoryCallback(content)(catalogWs)
+          : content;
+      return nodes
+        .filter((node) => node.tagName?.toLowerCase() === 'button')
+        .map((node) => node.getAttribute('callbackKey'));
+    });
+    let buttonIndex = 0;
+    const decorations = flyout.buttons_.map((b) => ({
+      kind: b.isLabel_ ? 'label' : 'button',
+      text: B.utils.replaceMessageReferences(b.getText()),
+      position: { x: b.getPosition().x * scale, y: b.getPosition().y * scale },
+      width: b.width * scale,
+      height: b.height * scale,
+      ...(!b.isLabel_ && callbacks[buttonIndex] ? { callback: callbacks[buttonIndex++] } : {}),
+    }));
+    for (const checkbox of Object.values(flyout.checkboxes_)) {
+      const transform = checkbox.svgRoot.transform.baseVal.consolidate().matrix;
+      decorations.push({
+        kind: 'checkbox',
+        text: '',
+        position: { x: transform.e * scale, y: transform.f * scale },
+        width: flyout.CHECKBOX_SIZE * scale,
+        height: flyout.CHECKBOX_SIZE * scale,
+      });
+    }
+    const contentHeight = flyout.getMetrics_().contentHeight;
+    return {
+      categories,
+      entries,
+      decorations,
+      contentHeight,
+      xml,
+      theme: Object.entries(paints)
+        .map(([v, k]) => `.fill-${k}{fill:${v}}.stroke-${k}{stroke:${v}}`)
+        .join('\n'),
+    };
+  };
   window.disposePreparation = () => {
     ws.dispose();
+    catalogWs.dispose();
+    editor.dispose();
+    Math.random = originalRandom;
     document.getElementById('workspace').remove();
+    catalogHost.remove();
     return !Object.keys(B.Workspace.WorkspaceDB_).length;
   };
 };

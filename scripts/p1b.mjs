@@ -13,9 +13,7 @@ const out = root + '/artifacts/p1b',
 await mkdir(out, { recursive: true });
 await mkdir(baseline, { recursive: true });
 const start = performance.now();
-const adapter = await createAdapter({
-  entries: ['events.whenFlagClicked', 'motion.moveSteps'],
-});
+const adapter = await createAdapter({ project: tutorial.project });
 let compiled;
 try {
   compiled = await compile(tutorial, adapter);
@@ -142,7 +140,20 @@ try {
     window.player.seek(0);
     window.player.play();
   });
-  await page.waitForFunction(() => window.player.time > 0.06);
+  try {
+    await page.waitForFunction(() => window.player.time > 0.06);
+  } catch (error) {
+    throw new Error(
+      JSON.stringify({
+        errors,
+        player: await page.evaluate(() => ({
+          time: window.player.time,
+          playing: window.player.playing,
+        })),
+      }),
+      { cause: error },
+    );
+  }
   await page.evaluate(() => window.player.pause());
   const paused = await page.evaluate(() => window.player.time);
   await page.evaluate(

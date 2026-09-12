@@ -17,7 +17,7 @@ const move = (id, value = '10') => ({
   },
 });
 test('pinned Blockly compiles independent JSON/TS inputs and rejects invalid editing rules', async () => {
-  const adapter = await createAdapter();
+  const adapter = await createAdapter({ project: tutorial.project });
   try {
     const a = await compile(tutorial, adapter),
       b = await compile(
@@ -37,7 +37,7 @@ test('pinned Blockly compiles independent JSON/TS inputs and rejects invalid edi
         ],
         /Missing connection/,
       ],
-      [[{ id: 'm', opcode: 'motion_movesteps', fields: { NOPE: '1' } }], /Explicit fields/],
+      [[{ id: 'm', opcode: 'motion_movesteps', fields: { NOPE: '1' } }], /Missing field/],
       [[{ id: 'unknown', opcode: 'not_registered' }], /Unsupported opcode/],
       [
         [
