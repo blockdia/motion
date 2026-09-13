@@ -57,7 +57,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
     .join('')}</g>`;
   const workspaceSlot = '<g data-slot="workspace"></g>';
   const chrome = m.chrome.replace('<g data-slot="targets"></g>', () =>
-    targetPanelSvg(m, s.targetId),
+    targetPanelSvg(m, s.targetId, s.targetScroll),
   );
   const overlays = s.overlays
     .map((o) => {

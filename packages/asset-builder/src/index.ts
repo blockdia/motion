@@ -76,7 +76,7 @@ export async function createAdapter(options: {
       ),
       randomSeed: 0x4d6f7469,
       browser: '',
-      protocol: 7,
+      protocol: 8,
     },
   };
   const manifest: Manifest = {
@@ -116,6 +116,7 @@ export async function createAdapter(options: {
       def: BlockDefinition,
       step: string,
       editing?: { id: string; name: string; text: string; preeditStart?: number },
+      markerId?: string,
     ): Promise<string> {
       if (disposed) fail('LIFECYCLE', step, 'Preparation session disposed');
       if (descendants(def).some((b) => b.mutation))
@@ -129,20 +130,22 @@ export async function createAdapter(options: {
         hash(
           JSON.stringify(
             canonical({
-              protocol: 7,
+              protocol: 8,
               targetId,
               source,
               locale: manifest.locale,
               definition: def,
               editing,
+              markerId,
             }),
           ),
         ).slice(0, 24);
       if (!manifest.resources[key]) {
         try {
           const result = (await page.evaluate(
-            ({ key, def, editing }) => (window as any).prepareBlock(key, def, editing),
-            { key, def, editing },
+            ({ key, def, editing, markerId }) =>
+              (window as any).prepareBlock(key, def, editing, markerId),
+            { key, def, editing, markerId },
           )) as { resource: Resource; theme: string };
           manifest.resources[key] = result.resource;
           manifest.theme = result.theme + imeTheme;
@@ -204,6 +207,7 @@ export async function createAdapter(options: {
           return fail('CAPABILITY', step, String(error));
         }
       },
+      preparePreview: (def, id, step) => prepareResource(def, step, undefined, id),
       prepare: (def: BlockDefinition, step: string) => prepareResource(def, step),
       prepareInput: (
         def: BlockDefinition,

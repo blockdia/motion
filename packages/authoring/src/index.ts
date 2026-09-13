@@ -3,6 +3,7 @@ import { planTyping } from './typing.js';
 import { parseTutorial } from './spec.js';
 import {
   descendants,
+  targetPanelLayout,
   canonicalJson,
   fail,
   assertResources,
@@ -20,6 +21,7 @@ import {
 } from '@blockdia-motion/core';
 type Root = { block: BlockDefinition; node: VisualNode };
 type Context = {
+  targetScroll: number;
   roots: Map<string, Root>;
   targetId: string;
   toolboxes: Map<string, SceneState['toolbox']>;
@@ -48,6 +50,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
   };
   await adapter.selectTarget(spec.initialTarget);
   const initial: SceneState = {
+    targetScroll: targetPanelLayout(manifest, spec.initialTarget).scroll,
     targetId: spec.initialTarget,
     nodes: [],
     cursor: {
@@ -58,6 +61,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     toolbox: { category: catalogFor(spec.initialTarget).categories[0]?.key ?? '', scroll: 0 },
   };
   const context: Context = {
+    targetScroll: initial.targetScroll!,
     roots: new Map(),
     targetId: initial.targetId,
     toolboxes: new Map(
@@ -289,6 +293,18 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       c.roots.set(placed.block.id, placed);
       emit(c, t, path, { remove: [moving.block.id], nodes: [placed.node] });
       return t + duration;
+    }
+    if (joined && duration > 0 && adapter.preparePreview) {
+      const preview = await adapter.preparePreview(joined.block, moving.block.id, path);
+      c.tracks.push({
+        kind: 'preview',
+        id: joined.block.id,
+        asset: preview,
+        start: t + duration * 0.7,
+        end: t + duration,
+        step: path,
+        easing: 'linear',
+      });
     }
     const from = { x: moving.node.x, y: moving.node.y };
     emit(c, t, path, {
@@ -525,11 +541,37 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     if (s.op === 'wait') return t + s.duration;
     if (s.op === 'selectTarget') {
       catalogFor(s.targetId);
+      if (c.targetId === s.targetId) return t;
+      const panel = targetPanelLayout(manifest, s.targetId);
+      if (s.mode !== 'direct') {
+        if (panel.scroll !== c.targetScroll) {
+          c.tracks.push({
+            kind: 'targetScroll',
+            from: c.targetScroll,
+            to: panel.scroll,
+            start: t,
+            end: t + 0.2,
+            step: path,
+            easing: 'easeInOut',
+          });
+          t += 0.2;
+          emit(c, t, path, { targetScroll: panel.scroll });
+        }
+        const at = {
+          x: panel.bounds.x + panel.bounds.width / 2,
+          y: panel.bounds.y + panel.bounds.height / 2,
+        };
+        cursor(c, c.cursor, at, t, 0.25, path, 'easeInOut', false);
+        t += 0.25;
+        cursor(c, at, at, t, 0.1, path + ':click', 'linear', true);
+        t += 0.1;
+      }
+      c.targetScroll = panel.scroll;
       c.toolboxes.set(c.targetId, { ...c.toolbox });
       c.targetId = s.targetId;
       c.toolbox = { ...c.toolboxes.get(s.targetId)! };
       await adapter.selectTarget(s.targetId);
-      emit(c, t, path, { targetId: c.targetId, toolbox: c.toolbox });
+      emit(c, t, path, { targetId: c.targetId, toolbox: c.toolbox, targetScroll: c.targetScroll });
       return t;
     }
     await adapter.selectTarget(c.targetId);

@@ -600,9 +600,13 @@ test('target list follows timeline selection, escapes names, scrolls determinist
     initialTarget: 'sprite-0',
   };
   const scene = await compile(tutorial, adapter);
+  const selection = scene.events.find((e) => e.targetId === 'sprite-14');
+  assert.equal(evaluate(selection.time - 0.01, scene).targetId, 'sprite-0');
+  assert.equal(evaluate(selection.time - 0.01, scene).cursor.pressed, true);
+  assert.ok(scene.tracks.some((t) => t.kind === 'targetScroll'));
   const initial = frameSvg(0, scene),
-    last = frameSvg(1, scene),
-    stage = frameSvg(2, scene);
+    last = frameSvg(scene.events.find((e) => e.targetId === 'sprite-14').time, scene),
+    stage = frameSvg(scene.events.find((e) => e.targetId === 'stage').time, scene);
   assert.match(initial, /data-target-id="sprite-0" data-selected="true"/);
   assert.match(last, /data-target-id="sprite-14" data-selected="true"/);
   assert.match(last, /\$&amp; &lt;script&gt; &amp; &quot;测试&quot;/);
@@ -614,7 +618,7 @@ test('target list follows timeline selection, escapes names, scrolls determinist
   assert.doesNotMatch(stage, /aria-pressed="true"/);
   assert.match(initial, /data-property="size"[^>]*>100<\/text>/);
   assert.match(initial, /data-property="direction"[^>]*>90<\/text>/);
-  assert.equal(frameSvg(1, scene), last);
+  assert.equal(frameSvg(scene.events.find((e) => e.targetId === 'sprite-14').time, scene), last);
   assert.equal(frameSvg(0, scene), initial);
   adapter.manifest.project.targets = [adapter.manifest.project.targets[0]];
   const empty = await compile(

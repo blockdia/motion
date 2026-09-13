@@ -18,6 +18,18 @@ test('P2 real Blockly structural editing, shadow restoration, overlays and deter
     const count = Object.keys(adapter.manifest.resources).length;
     assert.deepEqual(await compile(JSON.parse(JSON.stringify(tutorial)), adapter), scene);
     assert.equal(Object.keys(adapter.manifest.resources).length, count);
+    const previews = scene.tracks.filter((t) => t.kind === 'preview');
+    assert.equal(previews.length, 2);
+    for (const preview of previews) {
+      const prepared = scene.manifest.resources[preview.asset];
+      assert.match(prepared.content, /fill-opacity="0.2"/);
+      const middle = evaluate((preview.start + preview.end) / 2, scene);
+      assert.equal(middle.nodes.find((n) => n.id === preview.id).asset, preview.asset);
+      assert.notEqual(
+        evaluate(preview.end, scene).nodes.find((n) => n.id === preview.id).asset,
+        preview.asset,
+      );
+    }
     const typing = scene.tracks.find((t) => t.kind === 'input');
     assert.ok(
       scene.manifest.resources[typing.frames.at(-1).asset].box.width >

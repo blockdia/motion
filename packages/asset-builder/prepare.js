@@ -42,6 +42,7 @@ window.startPreparation = async function (project) {
     clone.removeAttribute('transform');
     const anchors = {};
     for (const block of root.getDescendants()) {
+      if (block.isInsertionMarker()) continue;
       const at = block.getRelativeToSurfaceXY();
       const anchor = {
         opcode: block.type,
@@ -270,7 +271,7 @@ window.startPreparation = async function (project) {
       ws.clear();
     }
   };
-  window.prepareBlock = async (key, def, editing) => {
+  window.prepareBlock = async (key, def, editing, markerId) => {
     seedWorkspace(ws, currentTarget);
     try {
       function xmlFor(def, tag = 'block') {
@@ -298,6 +299,20 @@ window.startPreparation = async function (project) {
       }
       editor.sync(xmlFor(def).outerHTML);
       const root = instantiate(def);
+      if (markerId) {
+        const source = ws.getBlockById(markerId);
+        const connection = source.outputConnection || source.previousConnection;
+        const parent = connection?.targetConnection;
+        if (!parent) throw Error('CAPABILITY: Missing insertion parent');
+        let previewId = markerId + ':preview';
+        while (ws.getBlockById(previewId)) previewId += ':preview';
+        const marker = ws.newBlock(source.type, previewId);
+        marker.setInsertionMarker(true, source.width);
+        marker.initSvg();
+        source.dispose(false, false);
+        marker.render();
+        parent.connect(marker.outputConnection || marker.previousConnection);
+      }
       if (editing) {
         const field = ws.getBlockById(editing.id)?.getField(editing.name);
         if (!field) throw Error(`Missing editing field ${editing.id}.${editing.name}`);

@@ -292,12 +292,14 @@ export interface ToolboxState {
   scroll: number;
 }
 export interface SceneState {
+  targetScroll?: number;
   targetId: string;
   nodes: VisualNode[];
   cursor: Point & { pressed: boolean; button?: 'left' | 'right' };
   toolbox: ToolboxState;
 }
 export interface Event {
+  targetScroll?: number;
   time: number;
   step: string;
   targetId?: string;
@@ -322,6 +324,8 @@ export type Track = {
     }
   | { kind: 'cursor'; from: Point; to: Point; pressed: boolean; button?: 'left' | 'right' }
   | { kind: 'scroll'; from: number; to: number }
+  | { kind: 'targetScroll'; from: number; to: number }
+  | { kind: 'preview'; id: string; asset: string }
   | { kind: 'input'; id: string; frames: InputFrame[] }
   | ({ kind: 'overlay' } & Overlay)
 );
@@ -371,6 +375,7 @@ export interface PreparationAdapter {
   manifest: Manifest;
   selectTarget(targetId: string): Promise<void>;
   prepare(block: BlockDefinition, step: string): Promise<string>;
+  preparePreview?(block: BlockDefinition, id: string, step: string): Promise<string>;
   prepareContextMenu?(block: BlockDefinition, id: string, step: string): Promise<PreparedMenu>;
   deleteBlock?(
     block: BlockDefinition,
@@ -400,6 +405,7 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
     if (event.time > t) break;
     event.remove?.forEach((id) => nodes.delete(id));
     event.nodes?.forEach((n) => nodes.set(n.id, { ...n }));
+    if (event.targetScroll !== undefined) state.targetScroll = event.targetScroll;
     if (event.targetId) state.targetId = event.targetId;
     if (event.cursor) state.cursor = { ...event.cursor };
     if (event.toolbox) state.toolbox = { ...event.toolbox };
@@ -423,7 +429,12 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
         ...(track.button ? { button: track.button } : {}),
       };
     else if (track.kind === 'scroll') state.toolbox.scroll = mix(track.from, track.to, p);
-    else {
+    else if (track.kind === 'targetScroll') state.targetScroll = mix(track.from, track.to, p);
+    else if (track.kind === 'preview') {
+      const node = nodes.get(track.id);
+      if (!node) fail('TARGET', track.step, 'Missing preview parent');
+      node.asset = track.asset;
+    } else {
       const frame = track.frames.filter((frame) => track.start + frame.offset <= t).at(-1);
       const n = nodes.get(track.id);
       if (!n || !frame) fail('TARGET', track.step, 'Missing input frame or node');
@@ -541,6 +552,8 @@ export function assertResources(scene: CompiledScene): void {
     resource(n.asset);
   }
   if (
+    (scene.initial.targetScroll !== undefined &&
+      (!Number.isFinite(scene.initial.targetScroll) || scene.initial.targetScroll < 0)) ||
     !point(scene.initial.cursor) ||
     !scene.initial.toolbox ||
     !Number.isFinite(scene.initial.toolbox.scroll)
@@ -556,6 +569,11 @@ export function assertResources(scene: CompiledScene): void {
       event.time > scene.duration
     )
       fail('SCHEMA', 'scene', 'Events must be sorted within duration');
+    if (
+      event.targetScroll !== undefined &&
+      (!Number.isFinite(event.targetScroll) || event.targetScroll < 0)
+    )
+      fail('SCHEMA', 'scene', 'Invalid target scroll');
     previousTime = event.time;
     if (event.targetId !== undefined && !Object.hasOwn(m.targets, event.targetId))
       fail('TARGET', 'scene', 'Unknown switched target');
@@ -586,9 +604,11 @@ export function assertResources(scene: CompiledScene): void {
     if (track.kind === 'node' || track.kind === 'cursor') {
       if (!point(track.from) || !point(track.to))
         fail('SCHEMA', 'scene', 'Invalid animation points');
-    } else if (track.kind === 'scroll') {
+    } else if (track.kind === 'scroll' || track.kind === 'targetScroll') {
       if (!Number.isFinite(track.from) || !Number.isFinite(track.to))
         fail('SCHEMA', 'scene', 'Invalid scroll animation');
+    } else if (track.kind === 'preview') {
+      if (!Object.hasOwn(m.resources, track.asset)) fail('RESOURCE', track.step, 'Missing preview');
     } else if (track.kind === 'overlay') {
       if (!rect(track.bounds) || typeof track.text !== 'string')
         fail('SCHEMA', 'scene', 'Invalid overlay');
@@ -687,4 +707,32 @@ export function assertResources(scene: CompiledScene): void {
     if (!point(entry.position)) fail('SCHEMA', 'toolbox', 'Invalid entry position');
     resource(entry.asset);
   }
+}
+
+// Shared sprite tile geometry for cursor targeting and browser/video rendering.
+export function targetPanelLayout(manifest: Manifest, targetId: string, offset?: number) {
+  const list = manifest.layout.spriteList;
+  const sprites = manifest.project.targets.filter((t) => !t.isStage);
+  const columns = 5,
+    gap = 8,
+    tileHeight = 64,
+    rowHeight = 72;
+  const tileWidth = (list.width - gap) / columns - gap;
+  const index = sprites.findIndex((t) => t.id === targetId);
+  const maxScroll = Math.max(
+    0,
+    Math.ceil(sprites.length / columns) * rowHeight + gap - (list.height - 64),
+  );
+  const scroll = Math.min(
+    maxScroll,
+    Math.max(0, offset ?? Math.floor(index / columns) * rowHeight),
+  );
+  const tile = (i: number): Rect => ({
+    x: list.x + gap + (i % columns) * (tileWidth + gap),
+    y: list.y + gap + Math.floor(i / columns) * rowHeight - scroll,
+    width: tileWidth,
+    height: tileHeight,
+  });
+  const bounds = index < 0 ? { ...manifest.layout.backdrop, height: 84 } : tile(index);
+  return { tile, bounds, scroll, maxScroll, tileHeight, tileWidth };
 }

@@ -1,4 +1,4 @@
-import type { Manifest } from '@blockdia-motion/core';
+import { targetPanelLayout, type Manifest } from '@blockdia-motion/core';
 
 const escape = (value: string) =>
   value
@@ -24,31 +24,23 @@ function label(value: string, width: number): string {
 
 // Fixed zh-CN/light GUI geometry, shared by browser and video rendering.
 // The chrome slot precedes the floating add buttons, so tiles never cover them.
-export function targetPanelSvg(manifest: Manifest, targetId: string): string {
+export function targetPanelSvg(manifest: Manifest, targetId: string, offset?: number): string {
   const { project, layout } = manifest;
   const list = layout.spriteList,
     stageBox = layout.backdrop;
   const sprites = project.targets.filter((target) => !target.isStage);
   const selected = project.targets.find((target) => target.id === targetId)!;
   const stage = project.targets.find((target) => target.isStage)!;
-  const columns = 5,
-    gap = 8,
-    tileHeight = 64,
-    rowHeight = tileHeight + gap;
-  const tileWidth = (list.width - gap) / columns - gap;
-  const activeIndex = sprites.findIndex((target) => target.id === targetId);
-  // Leave room below the last row for the floating add button. Deriving the
-  // offset from the selected target makes arbitrary seek order deterministic.
-  const contentHeight = Math.ceil(sprites.length / columns) * rowHeight + gap;
-  const visibleHeight = list.height - 64;
-  const maxScroll = Math.max(0, contentHeight - visibleHeight);
-  const scroll = Math.min(maxScroll, Math.max(0, Math.floor(activeIndex / columns) * rowHeight));
+  const { tile, scroll, maxScroll, tileHeight, tileWidth } = targetPanelLayout(
+    manifest,
+    targetId,
+    offset,
+  );
   const text = (x: number, y: number, value: string, extra = '') =>
     `<text x="${x}" y="${y}" font-size="10" fill="#575e75" ${extra}>${escape(value)}</text>`;
   const tiles = sprites
     .map((target, index) => {
-      const x = list.x + gap + (index % columns) * (tileWidth + gap);
-      const y = list.y + gap + Math.floor(index / columns) * rowHeight - scroll;
+      const { x, y } = tile(index);
       const active = target.id === targetId;
       return `<g data-target-id="${escape(target.id)}" data-selected="${active}"><title>${escape(target.name)}</title>
       ${active ? `<rect x="${x - 3}" y="${y - 3}" width="${tileWidth + 6}" height="${tileHeight + 6}" rx="9" fill="#ffb5b5"/>` : ''}
