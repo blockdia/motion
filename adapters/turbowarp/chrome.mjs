@@ -49,6 +49,7 @@ export function chrome({
     box({ x: 0, y: 0, width: l.width, height: l.height }, c.background) +
     box(l.menu, gui('menu-bar-background', c.accent), 'data-surface="menu"') +
     `<g font-weight="bold">${menu.map(item => `<g data-shell-menu="${item.icon}">${text(item.textX, 28, item.label, 12, 'white')}</g>`).join('')}</g>` +
+    `<path data-shell-region="menu-divider" d="M${title.x - 9} 7 V41" fill="none" stroke="${c.border}" stroke-dasharray="3 2"/>` +
     `<g data-shell-region="project-title"><rect x="${title.x}" y="8" width="${title.width}" height="32" rx="3" fill="${gui('project-title-inactive', 'rgba(255,255,255,.2)')}"/>${text(title.x + 10, 28, 'Motion 教程', 12, 'white')}</g>` +
     `<g data-shell-region="project-page"><rect x="${project.x}" y="8" width="${project.width}" height="32" rx="3" fill="none" stroke="${c.border}"/>${text(project.x + 40, 28, '查看作品页面', 12, 'white')}</g>` +
     `<g data-shell-region="feedback"><rect x="${feedback.x}" y="8" width="${feedback.width}" height="32" rx="3" fill="white"/>${text(feedback.x + 11, 28, 'TurboWarp 反馈', 12, gui('menu-bar-background', c.accent))}</g>` +
