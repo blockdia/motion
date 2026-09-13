@@ -37,14 +37,32 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
     assert.ok(draggingTime !== undefined);
     await page.evaluate((time) => window.player.seek(time), draggingTime);
     const beforeCursor = await page.locator('[data-cursor-button]').boundingBox();
+    const grip = () =>
+      page.evaluate(() => {
+        const block = document.querySelector('[data-dragged-stack]').getScreenCTM();
+        const cursor = document.querySelector('[data-cursor-button]').getScreenCTM();
+        return {
+          x: (block.e - cursor.e) / window.player.view.zoom,
+          y: (block.f - cursor.f) / window.player.view.zoom,
+        };
+      });
+    const beforeGrip = await grip();
     const dragFrame = await page.locator('.motion-frame').boundingBox();
     await page.mouse.move(dragFrame.x + 600, dragFrame.y + 350);
     await page.mouse.down();
     await page.mouse.move(dragFrame.x + 650, dragFrame.y + 380);
     await page.mouse.up();
     const afterCursor = await page.locator('[data-cursor-button]').boundingBox();
-    assert.ok(Math.abs(afterCursor.x - beforeCursor.x - 50) < 1);
-    assert.ok(Math.abs(afterCursor.y - beforeCursor.y - 30) < 1);
+    assert.ok(Math.abs(afterCursor.x - beforeCursor.x) < 1);
+    assert.ok(Math.abs(afterCursor.y - beforeCursor.y) < 1);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -100);
+    await page.keyboard.up('Control');
+    await page.waitForFunction(() => window.player.view.zoom > 1);
+    const afterGrip = await grip();
+    assert.ok(Math.abs(beforeGrip.x - afterGrip.x) < 0.001);
+    assert.ok(Math.abs(beforeGrip.y - afterGrip.y) < 0.001);
+    assert.equal(await page.evaluate(() => window.player.time), draggingTime);
     await page.evaluate(() => window.player.resetView());
     await page.mouse.wheel(20, 40);
     await page.waitForFunction(() => window.player.view.y === -40);

@@ -69,7 +69,7 @@ export function frameSvg(
       .replace(/(?<=\s)id="([^"]+)"/g, (_, id: string) => `id="${prefix}-${id}"`)
       .replace(/url\(#([^)]+)\)/g, (_, id: string) => `url(#${prefix}-${id})`)
       .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${prefix}-${id}`);
-    return `<g opacity="${opacity}" transform="translate(${x} ${y}) scale(${scale})">${dragging ? `<defs><filter id="${prefix}-shadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feComponentTransfer result="offsetBlur"><feFuncA type="linear" slope=".3"/></feComponentTransfer><feComposite in="SourceGraphic" in2="offsetBlur" operator="over"/></filter></defs><g filter="url(#${prefix}-shadow)">${content}</g>` : content}</g>`;
+    return `<g${dragging ? ' data-dragged-stack="true"' : ''} opacity="${opacity}" transform="translate(${x} ${y}) scale(${scale})">${dragging ? `<defs><filter id="${prefix}-shadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feComponentTransfer result="offsetBlur"><feFuncA type="linear" slope=".3"/></feComponentTransfer><feComposite in="SourceGraphic" in2="offsetBlur" operator="over"/></filter></defs><g filter="url(#${prefix}-shadow)">${content}</g>` : content}</g>`;
   };
   const w = m.layout.workspace;
   const transform = `translate(${w.x + view.x} ${w.y + view.y}) scale(${view.zoom}) translate(${-w.x} ${-w.y})`;
@@ -179,22 +179,19 @@ export function frameSvg(
     )}</g>` +
     `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="#ccc"/>` +
     `<g clip-path="url(#editor)">` +
-    viewed(
-      `<g>${s.nodes
-        .filter((n) => n.dragging)
-        .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`, true))
-        .join('')}</g>`,
-      false,
-    ) +
+    `<g transform="translate(${s.cursor.x} ${s.cursor.y}) scale(${view.zoom}) translate(${-s.cursor.x} ${-s.cursor.y})">${s.nodes
+      .filter((n) => n.dragging)
+      .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`, true))
+      .join('')}</g>` +
     '</g>' +
     (s.input ? viewed(inputSvg(s.input)) : '') +
     viewed(uiPaint(overlays, m)) +
     ((content: string) =>
-      s.nodes.some((node) => node.dragging) ||
-      (s.cursor.x >= box.x + box.width &&
-        s.cursor.x <= w.x + w.width &&
-        s.cursor.y >= w.y &&
-        s.cursor.y <= w.y + w.height)
+      !s.nodes.some((node) => node.dragging) &&
+      s.cursor.x >= box.x + box.width &&
+      s.cursor.x <= w.x + w.width &&
+      s.cursor.y >= w.y &&
+      s.cursor.y <= w.y + w.height
         ? viewed(content, false)
         : content)(
       (s.cursor.pressed
