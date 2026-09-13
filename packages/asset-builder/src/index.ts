@@ -76,7 +76,7 @@ export async function createAdapter(options: {
       ),
       randomSeed: 0x4d6f7469,
       browser: '',
-      protocol: 6,
+      protocol: 7,
     },
   };
   const manifest: Manifest = {
@@ -129,7 +129,7 @@ export async function createAdapter(options: {
         hash(
           JSON.stringify(
             canonical({
-              protocol: 6,
+              protocol: 7,
               targetId,
               source,
               locale: manifest.locale,
@@ -161,6 +161,34 @@ export async function createAdapter(options: {
         if (disposed) fail('LIFECYCLE', 'prepare', 'Preparation session disposed');
         targetId = id;
         await page.evaluate((id) => (window as any).selectPreparationTarget(id), id);
+      },
+      async prepareContextMenu(
+        def: BlockDefinition,
+        id: string,
+        step: string,
+      ): Promise<import('@blockdia-motion/core').PreparedMenu> {
+        try {
+          return await page.evaluate(({ def, id }) => (window as any).prepareContextMenu(def, id), {
+            def,
+            id,
+          });
+        } catch (error) {
+          return fail('CAPABILITY', step, String(error));
+        }
+      },
+      async deleteBlock(
+        def: BlockDefinition,
+        id: string,
+        step: string,
+      ): Promise<{ block: BlockDefinition; position: import('@blockdia-motion/core').Point }[]> {
+        try {
+          return await page.evaluate(({ def, id }) => (window as any).deleteBlock(def, id), {
+            def,
+            id,
+          });
+        } catch (error) {
+          return fail('BLOCKLY', step, String(error));
+        }
       },
       async prepareMenu(
         def: BlockDefinition,

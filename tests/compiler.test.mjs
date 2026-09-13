@@ -343,13 +343,6 @@ test('diagnostics cover conflicting branches, lifecycle, missing fields/slots/en
       ]),
       /CONNECTION/,
     ],
-    [
-      spec([
-        { ...create, blocks: [{ ...hat('h'), next: move('m') }] },
-        { op: 'move', id: 'm', to: slot('secondary') },
-      ]),
-      /UNSUPPORTED/,
-    ],
   ];
   for (const [tutorial, error] of invalid)
     await assert.rejects(() => compile(tutorial, mockAdapter()), error);
@@ -722,12 +715,17 @@ test('P2 splits a next subtree, deletes it, merges independent branches and keep
     ]),
     mockAdapter(),
   );
-  assert.equal(evaluate(0.1, scene).nodes.length, 2);
-  assert.ok(Math.abs(evaluate(0.8, scene).nodes.find((n) => n.id === 'm').opacity - 0.5) < 1e-12);
-  assert.equal(evaluate(1, scene).nodes.length, 1);
+  assert.equal(evaluate(0.31, scene).nodes.length, 2);
+  const deletion = scene.tracks.filter((t) => t.kind === 'node' && t.id === 'm').at(-1);
+  assert.equal(
+    evaluate((deletion.start + deletion.end) / 2, scene).nodes.find((n) => n.id === 'm').opacity,
+    1,
+  );
+  assert.ok(deletion.to.x < scene.manifest.layout.toolbox.x + scene.manifest.layout.toolbox.width);
+  assert.equal(evaluate(scene.duration, scene).nodes.length, 1);
   assert.equal(scene.finalTargets.sprite[0].next, undefined);
   assert.match(frameSvg(0.8, scene), /&lt;保留&gt;/);
-  assert.equal(evaluate(1, scene).overlays.length, 0);
+  assert.equal(evaluate(scene.duration, scene).overlays.length, 0);
   const before = JSON.stringify(scene);
   evaluate(0.8, scene).overlays[0].bounds.x = -999;
   assert.equal(JSON.stringify(scene), before);

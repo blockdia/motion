@@ -70,7 +70,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
         );
         const edge = a.above ? p.y + p.height : p.y;
         const direction = a.above ? 1 : -1;
-        return `<g data-overlay="menu" clip-path="url(#workspace)"><rect ${rect(p)} rx="4" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/><path d="M${tip - 8} ${edge} L${tip} ${edge + direction * 9} L${tip + 8} ${edge}" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>${a.options.map((option, i) => `<g>${a.hovered === i ? `<rect x="${p.x + 2}" y="${p.y + 4 + i * a.rowHeight}" width="${p.width - 4}" height="${a.rowHeight}" rx="2" fill="${escape(a.stroke)}"/>` : ''}${a.checked === i ? `<path d="M${p.x + 12} ${p.y + 4 + (i + 0.5) * a.rowHeight} l3 4 l7 -10" fill="none" stroke="#172b4d" stroke-width="2"/>` : ''}<text x="${p.x + 30}" y="${p.y + 4 + (i + 0.5) * a.rowHeight + a.fontSize * 0.35}" font-size="${a.fontSize}" font-weight="bold" fill="white">${escape(option[0])}</text></g>`).join('')}</g>`;
+        return `<g data-overlay="menu" clip-path="url(#workspace)"><rect ${rect(p)} rx="4" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>${a.context ? '' : `<path d="M${tip - 8} ${edge} L${tip} ${edge + direction * 9} L${tip + 8} ${edge}" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>`}${a.options.map((option, i) => `<g>${a.hovered === i ? `<rect x="${p.x + 2}" y="${p.y + 4 + i * a.rowHeight}" width="${p.width - 4}" height="${a.rowHeight}" rx="2" fill="${a.context ? '#e8f0fe' : escape(a.stroke)}"/>` : ''}${a.checked === i ? `<path d="M${p.x + 12} ${p.y + 4 + (i + 0.5) * a.rowHeight} l3 4 l7 -10" fill="none" stroke="#172b4d" stroke-width="2"/>` : ''}<text x="${p.x + (a.context ? 12 : 30)}" y="${p.y + 4 + (i + 0.5) * a.rowHeight + a.fontSize * 0.35}" font-size="${a.fontSize}" font-weight="${a.context ? 'normal' : 'bold'}" fill="${a.context ? (a.enabled?.[i] === false ? '#aaa' : '#29292d') : 'white'}">${escape(option[0])}</text></g>`).join('')}</g>`;
       }
       if (o.ime) {
         const view = m.layout.workspace;
@@ -152,9 +152,9 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
     (s.input ? inputSvg(s.input) : '') +
     overlays +
     (s.cursor.pressed
-      ? `<circle cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="#ff4c4c" opacity=".18"/>`
+      ? `<circle cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="${s.cursor.button === 'right' ? '#4c97ff' : '#ff4c4c'}" opacity=".18"/>`
       : '') +
-    `<path transform="translate(${s.cursor.x} ${s.cursor.y})" d="M0 0 L0 23 L6 17 L11 28 L16 25 L11 15 L20 15 Z" fill="#242938" stroke="white" stroke-width="2"/>`;
+    `<path data-cursor-button="${s.cursor.button ?? 'left'}" transform="translate(${s.cursor.x} ${s.cursor.y})" d="M0 0 L0 23 L6 17 L11 28 L16 25 L11 15 L20 15 Z" fill="#242938" stroke="white" stroke-width="2"/>`;
   const svg = `<svg class="scene-${namespace}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${m.viewport.width}" height="${m.viewport.height}" viewBox="0 0 ${m.viewport.width} ${m.viewport.height}"><style>${m.theme.replace(
     /([^{}]+)\{/g,
     (_, selectors: string) =>

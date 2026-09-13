@@ -69,7 +69,8 @@ function step(value: unknown, path: string) {
     create: ['blocks', 'to', 'duration', 'easing'],
     paste: ['blocks', 'to', 'duration', 'easing'],
     split: ['id', 'to', 'duration', 'easing'],
-    delete: ['id', 'duration'],
+    delete: ['id', 'via', 'duration'],
+    contextMenu: ['id', 'duration'],
     highlight: ['id', 'duration'],
     annotate: ['id', 'text', 'duration'],
     setField: ['target', 'value', 'duration'],
@@ -83,7 +84,27 @@ function step(value: unknown, path: string) {
   };
   if (typeof op !== 'string' || !Object.hasOwn(keys, op))
     fail('UNSUPPORTED', path, `Unsupported operation ${String(op)}`);
-  const o = object(value, path, ['op', ...keys[op]!]);
+  const o = object(value, path, ['op', 'mode', ...keys[op]!]);
+  if (o.mode !== undefined && o.mode !== 'direct') fail('SCHEMA', path, 'Unknown operation mode');
+  if (
+    o.mode === 'direct' &&
+    (![
+      'create',
+      'move',
+      'connect',
+      'delete',
+      'setField',
+      'selectTarget',
+      'selectCategory',
+      'reveal',
+    ].includes(op) ||
+      o.duration !== undefined ||
+      o.easing !== undefined ||
+      o.via !== undefined)
+  )
+    fail('SCHEMA', path, 'Direct operations have no animation, duration or gesture options');
+  if (o.via !== undefined && !['toolbox', 'contextMenu'].includes(o.via as string))
+    fail('SCHEMA', path, 'Unknown delete gesture');
   if (
     o.duration !== undefined &&
     (typeof o.duration !== 'number' || !Number.isFinite(o.duration) || o.duration <= 0)
@@ -96,7 +117,7 @@ function step(value: unknown, path: string) {
     o.steps.forEach((s, i) => step(s, `${path}.steps[${i}]`));
   } else if (op === 'wait') {
     if (o.duration === undefined) fail('DURATION', path, 'Wait requires duration');
-  } else if (op === 'delete' || op === 'highlight' || op === 'annotate') {
+  } else if (op === 'delete' || op === 'contextMenu' || op === 'highlight' || op === 'annotate') {
     string(o.id, path);
     if (op === 'annotate') string(o.text, path);
   } else if (op === 'type' || op === 'setField' || op === 'choose') {
@@ -263,9 +284,41 @@ export class SceneBuilder {
   split(id: string, to: Destination, timing: Timing = {}): Step {
     return { op: 'split', id, to, ...timing };
   }
-  delete(id: string, duration?: number): Step {
-    return { op: 'delete', id, ...(duration === undefined ? {} : { duration }) };
+  delete(id: string, options: { via?: 'toolbox' | 'contextMenu'; duration?: number } = {}): Step {
+    return { op: 'delete', id, ...options };
   }
+  contextMenu(id: string, duration?: number): Step {
+    return { op: 'contextMenu', id, ...(duration === undefined ? {} : { duration }) };
+  }
+  direct = {
+    create: (blocks: BlockDefinition[], to: Destination): Step => ({
+      op: 'create',
+      mode: 'direct',
+      blocks,
+      to,
+    }),
+    move: (id: string, to: Destination): Step => ({ op: 'move', mode: 'direct', id, to }),
+    connect: (id: string, to: Destination & { kind: 'connection' }): Step => ({
+      op: 'connect',
+      mode: 'direct',
+      id,
+      to,
+    }),
+    delete: (id: string): Step => ({ op: 'delete', mode: 'direct', id }),
+    setField: (target: FieldTarget, value: string): Step => ({
+      op: 'setField',
+      mode: 'direct',
+      target,
+      value,
+    }),
+    selectTarget: (targetId: string): Step => ({ op: 'selectTarget', mode: 'direct', targetId }),
+    selectCategory: (category: string): Step => ({
+      op: 'selectCategory',
+      mode: 'direct',
+      category,
+    }),
+    reveal: (entry: string): Step => ({ op: 'reveal', mode: 'direct', entry }),
+  };
   highlight(id: string, duration?: number): Step {
     return { op: 'highlight', id, ...(duration === undefined ? {} : { duration }) };
   }

@@ -176,14 +176,74 @@ window.startPreparation = async function (project) {
       if (!Object.hasOwn(def.fields || {}, f.name))
         throw Error(`Explicit field required: ${def.id}.${f.name}`);
     for (const [name, input] of Object.entries(def.inputs || {})) {
-      if (input.shadow && input.block) instantiate(input.shadow, true).dispose(false);
+      let shadowDom;
+      if (input.shadow && input.block) {
+        const shadow = instantiate(input.shadow, true);
+        shadowDom = B.Xml.blockToDom(shadow);
+        shadow.dispose(false);
+      }
       const child = instantiate(input.block || input.shadow, !input.block);
       connect(b.getInput(name)?.connection, child.outputConnection || child.previousConnection);
+      if (shadowDom) b.getInput(name).connection.setShadowDom(shadowDom);
     }
     if (def.next) connect(b.nextConnection, instantiate(def.next).previousConnection);
     b.render();
     return b;
   }
+  window.prepareContextMenu = (def, id) => {
+    seedWorkspace(ws, currentTarget);
+    const originalShow = B.ContextMenu.show;
+    try {
+      instantiate(def);
+      const block = ws.getBlockById(id);
+      if (!block || block.isShadow()) throw Error('CAPABILITY: No block context menu');
+      let captured;
+      const deleteLabel = B.ContextMenu.blockDeleteOption(block).text;
+      B.ContextMenu.show = (_event, options) => {
+        captured = options;
+      };
+      block.showContextMenu_({ clientX: 0, clientY: 0, preventDefault() {}, stopPropagation() {} });
+      if (!captured?.length) throw Error('CAPABILITY: No block context menu');
+      const ctx = document.createElement('canvas').getContext('2d');
+      ctx.font = '13px "Motion Sans"';
+      return {
+        options: captured.map((o, i) => [o.text, o.text === deleteLabel ? 'delete' : `item:${i}`]),
+        enabled: captured.map((o) => !!o.enabled),
+        width: Math.max(160, ...captured.map((o) => ctx.measureText(o.text).width + 32)),
+        rowHeight: 28,
+        fontSize: 13,
+        fill: '#ffffff',
+        stroke: '#b9b9be',
+        context: true,
+      };
+    } finally {
+      B.ContextMenu.show = originalShow;
+      B.ContextMenu.currentBlock = null;
+      ws.clear();
+    }
+  };
+  window.deleteBlock = (def, id) => {
+    seedWorkspace(ws, currentTarget);
+    try {
+      const root = instantiate(def),
+        origin = root.getRelativeToSurfaceXY();
+      const block = ws.getBlockById(id);
+      if (!block || block.isShadow()) throw Error('CAPABILITY: Cannot delete shadow');
+      block.dispose(true, false);
+      return ws
+        .getTopBlocks(false)
+        .filter((b) => !b.isShadow() && !b.type.startsWith('procedures_'))
+        .map((b) => {
+          const at = b.getRelativeToSurfaceXY();
+          return {
+            block: definitionFromXml(B.Xml.blockToDom(b), b.id, true),
+            position: { x: at.x - origin.x, y: at.y - origin.y },
+          };
+        });
+    } finally {
+      ws.clear();
+    }
+  };
   window.prepareMenu = (def, target) => {
     seedWorkspace(ws, currentTarget);
     try {
@@ -354,7 +414,8 @@ window.startPreparation = async function (project) {
   // These buttons are visible but are not authoring operations in Motion.
   for (const key of ['CREATE_VARIABLE', 'CREATE_LIST', 'CREATE_PROCEDURE', 'OPEN_RETURN_DOCS'])
     catalogWs.registerButtonCallback(key, () => {});
-  function definitionFromXml(xml, id = 'entry') {
+  function definitionFromXml(xml, id = 'entry', preserveIds = false) {
+    if (preserveIds) id = xml.getAttribute('id') || id;
     const definition = { id, opcode: xml.getAttribute('type') };
     for (const child of xml.children) {
       if (child.tagName.toLowerCase() === 'field') {
@@ -373,10 +434,11 @@ window.startPreparation = async function (project) {
             input[nested.tagName.toLowerCase()] = definitionFromXml(
               nested,
               `${id}.${name}.${nested.tagName.toLowerCase()}`,
+              preserveIds,
             );
         if (Object.keys(input).length) (definition.inputs ??= {})[name] = input;
       } else if (child.tagName.toLowerCase() === 'next' && child.firstElementChild)
-        definition.next = definitionFromXml(child.firstElementChild, `${id}.next`);
+        definition.next = definitionFromXml(child.firstElementChild, `${id}.next`, preserveIds);
     }
     return definition;
   }

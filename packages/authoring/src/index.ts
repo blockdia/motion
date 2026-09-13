@@ -120,8 +120,14 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     path: string,
     easing: 'linear' | 'easeInOut',
     pressed: boolean,
+    button: 'left' | 'right' = 'left',
   ) {
     c.touched.add('cursor');
+    if (duration === 0) {
+      c.cursor = { ...to, pressed: false };
+      emit(c, start, path, { cursor: c.cursor });
+      return;
+    }
     c.tracks.push({
       kind: 'cursor',
       start,
@@ -131,6 +137,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       from: { ...from },
       to: { ...to },
       pressed,
+      button,
     });
     c.cursor = { ...to, pressed: false };
     emit(c, start + duration, path, { cursor: c.cursor });
@@ -139,24 +146,25 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     const cat = catalogFor(c.targetId).categories.find((x) => x.key === category);
     if (!cat) fail('CATEGORY', path, `Unsupported category ${category}`);
     c.touched.add('toolbox');
-    cursor(
-      c,
-      c.cursor,
-      {
-        x: manifest.layout.categories.x + manifest.layout.categories.width / 2,
-        y: cat.y,
-      },
-      t,
-      duration,
-      path,
-      'easeInOut',
-      false,
-    );
+    if (duration > 0)
+      cursor(
+        c,
+        c.cursor,
+        {
+          x: manifest.layout.categories.x + manifest.layout.categories.width / 2,
+          y: cat.y,
+        },
+        t,
+        duration,
+        path,
+        'easeInOut',
+        false,
+      );
     const scroll = Math.min(
       cat.scroll ?? 0,
       Math.max(0, catalogFor(c.targetId).contentHeight - manifest.layout.toolbox.height),
     );
-    if (scroll !== c.toolbox.scroll)
+    if (duration > 0 && scroll !== c.toolbox.scroll)
       c.tracks.push({
         kind: 'scroll',
         start: t,
@@ -185,20 +193,21 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     // A continuous flyout can already expose entries belonging to a neighbouring category.
     if (visible()) return t;
     if (c.toolbox.category !== e.category)
-      t = await select(c, e.category, t, 0.25, `${path}:category`);
+      t = await select(c, e.category, t, duration === 0 ? 0 : 0.25, `${path}:category`);
     let scroll = c.toolbox.scroll;
     if (!visible()) scroll = Math.max(0, top - view.y - inset);
     scroll = Math.min(scroll, Math.max(0, catalogFor(c.targetId).contentHeight - view.height));
     if (scroll !== c.toolbox.scroll) {
-      c.tracks.push({
-        kind: 'scroll',
-        start: t,
-        end: t + duration,
-        step: path,
-        easing: 'easeInOut',
-        from: c.toolbox.scroll,
-        to: scroll,
-      });
+      if (duration > 0)
+        c.tracks.push({
+          kind: 'scroll',
+          start: t,
+          end: t + duration,
+          step: path,
+          easing: 'easeInOut',
+          from: c.toolbox.scroll,
+          to: scroll,
+        });
       c.toolbox = { ...c.toolbox, scroll };
       t += duration;
       emit(c, t, path, { toolbox: c.toolbox });
@@ -276,8 +285,9 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
         block: moving.block,
         node: { ...moving.node, ...dest.point, opacity: 1, dragging: false },
       };
+      c.roots.delete(moving.block.id);
       c.roots.set(placed.block.id, placed);
-      emit(c, t, path, { nodes: [placed.node] });
+      emit(c, t, path, { remove: [moving.block.id], nodes: [placed.node] });
       return t + duration;
     }
     const from = { x: moving.node.x, y: moving.node.y };
@@ -337,6 +347,136 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       c.touched.add(`block:${b.id}`);
     }
   }
+  async function approachBlock(c: Context, id: string, t: number, path: string) {
+    const { root, block } = locate(c, id, path);
+    const a = asset(root.node.asset, path).anchors[id];
+    if (!a) fail('CAPABILITY', path, 'Cannot drag hidden shadow');
+    const key = await adapter.prepare(block, path);
+    const point = { x: root.node.x + a.x * scale, y: root.node.y + a.y * scale };
+    cursor(c, c.cursor, grab(key, point, path), t, 0.2, `${path}:approach`, 'easeInOut', false);
+    return t + 0.2;
+  }
+  async function detach(c: Context, id: string, t: number, path: string): Promise<Root> {
+    const { root, block } = locate(c, id, path);
+    touch(c, root);
+    const anchor = asset(root.node.asset, path).anchors[block.id];
+    if (!anchor) fail('CAPABILITY', path, 'Cannot edit a hidden shadow');
+    const moving: Root = {
+      block: structuredClone(block),
+      node: {
+        ...root.node,
+        id: block.id,
+        x: root.node.x + anchor.x * scale,
+        y: root.node.y + anchor.y * scale,
+        asset: await adapter.prepare(block, path),
+      },
+    };
+    if (block !== root.block) {
+      const def = structuredClone(root.block);
+      let removed = false;
+      for (const parent of descendants(def)) {
+        if (parent.next?.id === block.id) {
+          delete parent.next;
+          removed = true;
+        }
+        for (const input of Object.values(parent.inputs ?? {})) {
+          if (input.shadow?.id === block.id) fail('CAPABILITY', path, 'Shadows cannot be detached');
+          if (input.block?.id === block.id) {
+            delete input.block;
+            removed = true;
+          }
+        }
+        for (const [name, input] of Object.entries(parent.inputs ?? {}))
+          if (!input.shadow && !input.block) delete parent.inputs![name];
+      }
+      if (!removed) fail('CONNECTION', path, 'Missing parent connection');
+      root.block = def;
+      root.node.asset = await adapter.prepare(def, path);
+      emit(c, t, path, { nodes: [root.node] });
+    } else c.roots.delete(block.id);
+    return moving;
+  }
+  async function contextGesture(
+    c: Context,
+    id: string,
+    t: number,
+    duration: number,
+    path: string,
+    remove: boolean,
+  ) {
+    const { root, block } = locate(c, id, path);
+    touch(c, root);
+    if (!adapter.prepareContextMenu)
+      fail('CAPABILITY', path, 'Adapter cannot prepare context menus');
+    const menu = await adapter.prepareContextMenu(root.block, id, path);
+    const a = asset(root.node.asset, path).anchors[id];
+    if (!a) fail('TARGET', path, 'Missing block anchor');
+    const at = { x: root.node.x + (a.x + 20) * scale, y: root.node.y + (a.y + 16) * scale };
+    cursor(c, c.cursor, at, t, 0.2, `${path}:approach`, 'easeInOut', false);
+    t += 0.2;
+    cursor(c, at, at, t, 0.1, `${path}:right-click`, 'linear', true, 'right');
+    t += 0.1;
+    const view = manifest.layout.workspace;
+    const height = menu.options.length * menu.rowHeight + 8;
+    if (height > view.height - 16 || menu.width > view.width - 16)
+      fail('CAPABILITY', path, 'Context menu exceeds workspace');
+    const panel = {
+      x: Math.max(view.x + 8, Math.min(at.x, view.x + view.width - menu.width - 8)),
+      y: Math.max(view.y + 8, Math.min(at.y, view.y + view.height - height - 8)),
+      width: menu.width,
+      height,
+    };
+    const selected = remove ? menu.options.findIndex((o) => o[1] === 'delete') : -1;
+    if (remove && (selected < 0 || menu.enabled?.[selected] === false))
+      fail('CAPABILITY', path, 'Block cannot be deleted from its context menu');
+    const dest = remove
+      ? { x: panel.x + 25, y: panel.y + 4 + (selected + 0.5) * menu.rowHeight }
+      : { x: view.x + 10, y: view.y + 10 };
+    const overlay = { ...menu, panel, above: false, checked: -1, hovered: -1 };
+    c.tracks.push({
+      kind: 'overlay',
+      bounds: { ...at, width: 0, height: 0 },
+      text: '',
+      menu: overlay,
+      start: t,
+      end: t + duration,
+      step: path,
+      easing: 'linear',
+    });
+    cursor(c, at, dest, t, duration, `${path}:menu-item`, 'easeInOut', false);
+    t += duration;
+    c.tracks.push({
+      kind: 'overlay',
+      bounds: { ...at, width: 0, height: 0 },
+      text: '',
+      menu: { ...overlay, hovered: selected },
+      start: t,
+      end: t + 0.1,
+      step: path,
+      easing: 'linear',
+    });
+    cursor(c, dest, dest, t, 0.1, `${path}:menu-click`, 'linear', true);
+    t += 0.1;
+    if (remove) {
+      if (!adapter.deleteBlock) fail('CAPABILITY', path, 'Adapter cannot perform context deletion');
+      const remaining = await adapter.deleteBlock(root.block, block.id, path);
+      const replacements: VisualNode[] = [];
+      for (const { block: def, position } of remaining) {
+        const node = {
+          ...root.node,
+          id: def.id,
+          x: root.node.x + position.x * scale,
+          y: root.node.y + position.y * scale,
+          asset: await adapter.prepare(def, path),
+        };
+        replacements.push(node);
+        c.roots.set(def.id, { block: def, node });
+      }
+      if (!remaining.some((r) => r.block.id === root.block.id)) c.roots.delete(root.block.id);
+      emit(c, t, path, { remove: [root.block.id], nodes: replacements });
+    }
+    return t;
+  }
   async function run(s: Step, c: Context, t: number, path: string): Promise<number> {
     if (s.op === 'sequence') {
       for (const [i, child] of s.steps.entries()) t = await run(child, c, t, `${path}.steps[${i}]`);
@@ -394,8 +534,10 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     }
     await adapter.selectTarget(c.targetId);
     const duration =
-      s.duration ??
-      (s.op === 'type' ? 0.8 : s.op === 'selectCategory' || s.op === 'reveal' ? 0.25 : 1);
+      s.mode === 'direct'
+        ? 0
+        : (s.duration ??
+          (s.op === 'type' ? 0.8 : s.op === 'selectCategory' || s.op === 'reveal' ? 0.25 : 1));
     const easing = 'easing' in s ? (s.easing ?? 'easeInOut') : 'easeInOut';
     if (s.op === 'selectCategory') return select(c, s.category, t, duration, path);
     if (s.op === 'reveal') return reveal(c, s.entry, t, duration, path);
@@ -423,64 +565,40 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       });
       return t + duration;
     }
+    if (s.op === 'contextMenu' || (s.op === 'delete' && s.via === 'contextMenu'))
+      return contextGesture(c, s.id, t, duration, path, s.op === 'delete');
     if (s.op === 'delete' || s.op === 'split') {
-      const { root, block } = locate(c, s.id, path);
-      touch(c, root);
-      const anchor = asset(root.node.asset, path).anchors[block.id];
-      if (!anchor) fail('CAPABILITY', path, 'Cannot edit a hidden shadow');
-      const moving: Root = {
-        block: structuredClone(block),
-        node: {
-          ...root.node,
-          id: block.id,
-          x: root.node.x + anchor.x * scale,
-          y: root.node.y + anchor.y * scale,
-          asset: await adapter.prepare(block, path),
-        },
-      };
-      if (block !== root.block) {
-        const def = structuredClone(root.block);
-        let removed = false;
-        for (const parent of descendants(def)) {
-          if (parent.next?.id === block.id) {
-            delete parent.next;
-            removed = true;
-          }
-          for (const input of Object.values(parent.inputs ?? {})) {
-            if (input.shadow?.id === block.id)
-              fail('CAPABILITY', path, 'Shadows cannot be detached');
-            if (input.block?.id === block.id) {
-              delete input.block;
-              removed = true;
-            }
-          }
-          for (const [name, input] of Object.entries(parent.inputs ?? {}))
-            if (!input.shadow && !input.block) delete parent.inputs![name];
-        }
-        if (!removed) fail('CONNECTION', path, 'Missing parent connection');
-        root.block = def;
-        root.node.asset = await adapter.prepare(def, path);
-        emit(c, t, path, { nodes: [root.node] });
-      } else c.roots.delete(block.id);
+      if (s.mode !== 'direct') t = await approachBlock(c, s.id, t, path);
+      const moving = await detach(c, s.id, t, path);
       if (s.op === 'delete') {
-        emit(c, t, path, { nodes: [moving.node] });
+        if (s.mode === 'direct') {
+          emit(c, t, path, { remove: [moving.block.id] });
+          return t;
+        }
+        const from = { x: moving.node.x, y: moving.node.y };
+        const sourceGrab = grab(moving.node.asset, from, path),
+          view = manifest.layout.toolbox;
+        const drop = { x: view.x + view.width / 2, y: view.y + Math.min(120, view.height / 2) };
+        const to = { x: from.x + drop.x - sourceGrab.x, y: from.y + drop.y - sourceGrab.y };
+        emit(c, t, path, { nodes: [{ ...moving.node, dragging: true }] });
         c.tracks.push({
           kind: 'node',
-          id: block.id,
+          id: moving.block.id,
           start: t,
           end: t + duration,
           step: path,
           easing,
-          from: moving.node,
-          to: moving.node,
+          from,
+          to,
           opacityFrom: 1,
-          opacityTo: 0,
+          opacityTo: 1,
         });
-        emit(c, t + duration, path, { remove: [block.id] });
+        cursor(c, sourceGrab, drop, t, duration, path, easing, true);
+        emit(c, t + duration, path, { remove: [moving.block.id] });
         return t + duration;
       }
-      c.roots.set(block.id, moving);
-      return place(c, moving, s.to, t, duration, path, easing, true);
+      c.roots.set(moving.block.id, moving);
+      return place(c, moving, s.to, t, duration, path, easing, s.mode !== 'direct');
     }
     if (s.op === 'setField' || s.op === 'choose') {
       const { root, block } = locate(c, s.target.id, path);
@@ -670,21 +788,15 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     }
 
     if (s.op === 'move' || s.op === 'connect') {
-      const { root, block } = locate(c, s.id, path);
-      if (block !== root.block)
-        fail('UNSUPPORTED', path, 'Use split before moving a connected child');
+      const found = locate(c, s.id, path);
+      let root = found.root;
       touch(c, root);
-      cursor(
-        c,
-        c.cursor,
-        grab(root.node.asset, root.node, path),
-        t,
-        0.2,
-        `${path}:approach`,
-        'easeInOut',
-        false,
-      );
-      t += 0.2;
+      if (s.mode === 'direct') {
+        root = await detach(c, s.id, t, path);
+        return place(c, root, s.to, t, 0, path, easing, false);
+      }
+      t = await approachBlock(c, s.id, t, path);
+      root = await detach(c, s.id, t, path);
       return place(c, root, s.to, t, duration, path, easing, true);
     }
     if (s.op === 'dragFromToolbox') {

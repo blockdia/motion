@@ -41,7 +41,7 @@ export default defineTutorial({
       s.split('say', s.workspace.slot('secondary'), { duration: 0.5 }),
       s.type(s.ref('message').field('TEXT'), '你好'),
       s.annotate('say', '从容器中拆出后仍保留文本', 0.4),
-      s.delete('say', 0.4),
+      s.delete('say', { duration: 0.4 }),
       s.create(
         [
           {
@@ -58,7 +58,7 @@ export default defineTutorial({
       s.connect('reporter', { kind: 'connection', id: 'repeat', name: 'TIMES' }, { duration: 0.5 }),
       s.wait(0.6),
       s.split('reporter', s.workspace.slot('secondary'), { duration: 0.5 }),
-      s.delete('reporter', 0.3),
+      s.delete('reporter', { duration: 0.3 }),
       s.create(
         [{ id: 'rotation', opcode: 'motion_setrotationstyle', fields: { STYLE: 'all around' } }],
         { to: s.workspace.slot('secondary'), duration: 0.2 },

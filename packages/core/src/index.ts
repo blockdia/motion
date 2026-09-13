@@ -85,7 +85,8 @@ export type Destination =
   | { kind: 'workspaceSlot'; name: string }
   | { kind: 'connection'; id: string; name: string };
 export type FieldTarget = { kind: 'field'; id: string; name: string };
-export type Step =
+export type Step = StepOperation & { mode?: 'direct' };
+type StepOperation =
   | { op: 'sequence'; steps: Step[] }
   | { op: 'parallel'; steps: Step[] }
   | { op: 'wait'; duration: number }
@@ -119,7 +120,8 @@ export type Step =
       easing?: Ease;
     }
   | { op: 'split'; id: string; to: Destination; duration?: number; easing?: Ease }
-  | { op: 'delete'; id: string; duration?: number }
+  | { op: 'delete'; id: string; via?: 'toolbox' | 'contextMenu'; duration?: number }
+  | { op: 'contextMenu'; id: string; duration?: number }
   | { op: 'highlight'; id: string; duration?: number }
   | { op: 'annotate'; id: string; text: string; duration?: number }
   | { op: 'setField' | 'choose'; target: FieldTarget; value: string; duration?: number }
@@ -184,6 +186,8 @@ export interface PreparedMenu {
   fontSize: number;
   fill: string;
   stroke: string;
+  context?: boolean;
+  enabled?: boolean[];
 }
 export interface Overlay {
   bounds: Rect;
@@ -290,7 +294,7 @@ export interface ToolboxState {
 export interface SceneState {
   targetId: string;
   nodes: VisualNode[];
-  cursor: Point & { pressed: boolean };
+  cursor: Point & { pressed: boolean; button?: 'left' | 'right' };
   toolbox: ToolboxState;
 }
 export interface Event {
@@ -316,7 +320,7 @@ export type Track = {
       opacityFrom: number;
       opacityTo: number;
     }
-  | { kind: 'cursor'; from: Point; to: Point; pressed: boolean }
+  | { kind: 'cursor'; from: Point; to: Point; pressed: boolean; button?: 'left' | 'right' }
   | { kind: 'scroll'; from: number; to: number }
   | { kind: 'input'; id: string; frames: InputFrame[] }
   | ({ kind: 'overlay' } & Overlay)
@@ -367,6 +371,12 @@ export interface PreparationAdapter {
   manifest: Manifest;
   selectTarget(targetId: string): Promise<void>;
   prepare(block: BlockDefinition, step: string): Promise<string>;
+  prepareContextMenu?(block: BlockDefinition, id: string, step: string): Promise<PreparedMenu>;
+  deleteBlock?(
+    block: BlockDefinition,
+    id: string,
+    step: string,
+  ): Promise<{ block: BlockDefinition; position: Point }[]>;
   prepareMenu?(block: BlockDefinition, target: FieldTarget, step: string): Promise<PreparedMenu>;
   prepareInput(
     block: BlockDefinition,
@@ -410,6 +420,7 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
         x: mix(track.from.x, track.to.x, p),
         y: mix(track.from.y, track.to.y, p),
         pressed: track.pressed,
+        ...(track.button ? { button: track.button } : {}),
       };
     else if (track.kind === 'scroll') state.toolbox.scroll = mix(track.from, track.to, p);
     else {
