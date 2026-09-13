@@ -10,3 +10,15 @@ export const imeTheme = `
 .motion-ime-selected-label { fill: #ffffff; }
 .motion-ime-chevron { stroke: #74747a; }
 `;
+
+export function imeThemeFor(theme: 'light' | 'dark'): string {
+  return theme === 'light'
+    ? imeTheme
+    : imeTheme +
+        `
+.motion-ime-panel { fill: #29292d; stroke: #74747a; }
+.motion-ime-label { fill: #eeeeee; }
+.motion-ime-number { fill: #bbbbbb; }
+.motion-ime-chevron { stroke: #bbbbbb; }
+`;
+}

@@ -7,7 +7,7 @@ import {
   type Rect,
   type Snapshot,
 } from '@blockdia-motion/core';
-import { shellSvg, uiPaint, darkIme } from './appearance.js';
+import { guiColor, blockColor } from './appearance.js';
 import { targetPanelSvg } from './targets.js';
 const escape = (s: string) =>
   s
@@ -71,6 +71,8 @@ export function frameSvg(
       .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${prefix}-${id}`);
     return `<g${dragging ? ' data-dragged-stack="true"' : ''} opacity="${opacity}" transform="translate(${x} ${y}) scale(${scale})">${dragging ? `<defs><filter id="${prefix}-shadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feComponentTransfer result="offsetBlur"><feFuncA type="linear" slope=".3"/></feComponentTransfer><feComposite in="SourceGraphic" in2="offsetBlur" operator="over"/></filter></defs><g filter="url(#${prefix}-shadow)">${content}</g>` : content}</g>`;
   };
+  const gui = (key: string, fallback: string) => guiColor(m, key, fallback);
+  const block = (key: string, fallback: string) => blockColor(m, key, fallback);
   const w = m.layout.workspace;
   const transform = `translate(${w.x + view.x} ${w.y + view.y}) scale(${view.zoom}) translate(${-w.x} ${-w.y})`;
   const viewed = (content: string, clip = true) =>
@@ -95,14 +97,12 @@ export function frameSvg(
       .join('')}</g>`,
   );
   const workspaceSlot = '<g data-slot="workspace"></g>';
-  const chrome = shellSvg(m.chrome, m)
+  const chrome = m.chrome
     .replace(
       '<pattern id="workspace-dots"',
       `<pattern id="workspace-dots" patternTransform="${transform}"`,
     )
-    .replace('<g data-slot="targets"></g>', () =>
-      uiPaint(targetPanelSvg(m, s.targetId, s.targetScroll), m),
-    );
+    .replace('<g data-slot="targets"></g>', () => targetPanelSvg(m, s.targetId, s.targetScroll));
   const overlays = s.overlays
     .map((o) => {
       if (o.menu) {
@@ -114,7 +114,7 @@ export function frameSvg(
         );
         const edge = a.above ? p.y + p.height : p.y;
         const direction = a.above ? 1 : -1;
-        return `<g data-overlay="menu" clip-path="url(#workspace)"><rect ${rect(p)} rx="4" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>${a.context ? '' : `<path d="M${tip - 8} ${edge} L${tip} ${edge + direction * 9} L${tip + 8} ${edge}" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>`}${a.options.map((option, i) => `<g>${a.hovered === i ? `<rect x="${p.x + 2}" y="${p.y + 4 + i * a.rowHeight}" width="${p.width - 4}" height="${a.rowHeight}" rx="2" fill="${a.context ? '#e8f0fe' : 'rgba(0,0,0,.2)'}"/>` : ''}${a.checked === i ? `<path d="M${p.x + 12} ${p.y + 4 + (i + 0.5) * a.rowHeight} l3 4 l7 -10" fill="none" stroke="#172b4d" stroke-width="2"/>` : ''}<text x="${p.x + (a.context ? 12 : 30)}" y="${p.y + 4 + (i + 0.5) * a.rowHeight + a.fontSize * 0.35}" font-size="${a.fontSize}" font-weight="${a.context ? 'normal' : 'bold'}" fill="${a.context ? (a.enabled?.[i] === false ? '#aaa' : '#29292d') : 'white'}">${escape(option[0])}</text></g>`).join('')}</g>`;
+        return `<g data-overlay="menu" clip-path="url(#workspace)"><rect ${rect(p)} rx="4" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>${a.context ? '' : `<path d="M${tip - 8} ${edge} L${tip} ${edge + direction * 9} L${tip + 8} ${edge}" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>`}${a.options.map((option, i) => `<g>${a.hovered === i ? `<rect x="${p.x + 2}" y="${p.y + 4 + i * a.rowHeight}" width="${p.width - 4}" height="${a.rowHeight}" rx="2" fill="${a.context ? block('contextMenuActiveBackground', '#e8f0fe') : 'rgba(0,0,0,.2)'}"/>` : ''}${a.checked === i ? `<path d="M${p.x + 12} ${p.y + 4 + (i + 0.5) * a.rowHeight} l3 4 l7 -10" fill="none" stroke="#172b4d" stroke-width="2"/>` : ''}<text x="${p.x + (a.context ? 12 : 30)}" y="${p.y + 4 + (i + 0.5) * a.rowHeight + a.fontSize * 0.35}" font-size="${a.fontSize}" font-weight="${a.context ? 'normal' : 'bold'}" fill="${a.context ? (a.enabled?.[i] === false ? block('contextMenuDisabledForeground', '#aaa') : block('contextMenuForeground', '#29292d')) : 'white'}">${escape(option[0])}</text></g>`).join('')}</g>`;
       }
       if (o.ime) {
         const view = m.layout.workspace;
@@ -154,22 +154,22 @@ export function frameSvg(
         o.bounds.y + o.bounds.height + height + 8 < m.layout.workspace.y + m.layout.workspace.height
           ? o.bounds.y + o.bounds.height + 8
           : Math.max(m.layout.workspace.y + 8, o.bounds.y - height - 8);
-      return `<g clip-path="url(#workspace)" data-overlay="true"><rect ${rect(o.bounds)} fill="none" stroke="#ffbf00" stroke-width="3" rx="4"/>${o.text ? `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="4" fill="white" stroke="#c7c7c7"/>${lines.map((line, i) => `<text x="${x + 10}" y="${y + 22 + i * 22}" font-size="14" fill="#575e75">${escape(line)}</text>`).join('')}` : ''}</g>`;
+      return `<g clip-path="url(#workspace)" data-overlay="true"><rect ${rect(o.bounds)} fill="none" stroke="#ffbf00" stroke-width="3" rx="4"/>${o.text ? `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="4" fill="${gui('popover-background', 'white')}" stroke="${gui('ui-black-transparent', '#c7c7c7')}"/>${lines.map((line, i) => `<text x="${x + 10}" y="${y + 22 + i * 22}" font-size="14" fill="${gui('text-primary', '#575e75')}">${escape(line)}</text>`).join('')}` : ''}</g>`;
     })
     .join('');
   const content =
     (chrome.includes(workspaceSlot)
       ? chrome.replace(workspaceSlot, () => workspace)
       : chrome + workspace) +
+    (category
+      ? `<rect x="2" y="${category.y - 15}" width="58" height="46" rx="3" fill="${block('toolboxSelected', '#e9eef2')}"/>`
+      : '') +
     catalog.categories
       .map(
         (c) =>
-          `<circle cx="${m.layout.categories.x + m.layout.categories.width / 2}" cy="${c.y}" r="9.5" fill="${escape(c.color ?? '#888')}"/><text x="${m.layout.categories.x + m.layout.categories.width / 2}" y="${c.y + 23}" text-anchor="middle" font-size="10.4" fill="${m.colorTheme === 'dark' ? '#eeeeee' : '#575e75'}">${escape(c.label)}</text>`,
+          `<circle cx="${m.layout.categories.x + m.layout.categories.width / 2}" cy="${c.y}" r="9.5" fill="${escape(c.color ?? '#888')}"/><text x="${m.layout.categories.x + m.layout.categories.width / 2}" y="${c.y + 23}" text-anchor="middle" font-size="10.4" fill="${block('toolboxText', '#575e75')}">${escape(c.label)}</text>`,
       )
       .join('') +
-    (category
-      ? `<rect x="2" y="${category.y - 15}" width="58" height="46" rx="3" fill="#4c97ff" opacity=".12"/>`
-      : '') +
     `<g clip-path="url(#toolbox)">${catalog.toolbox
       .filter((e) => {
         const b = m.resources[e.asset]!.box;
@@ -177,21 +177,18 @@ export function frameSvg(
         return top < box.y + box.height && top + b.height * scale > box.y;
       })
       .map((e, i) => node(e.asset, e.position.x, e.position.y - s.toolbox.scroll, 1, `tool${i}`))
-      .join('')}${uiPaint(
-      catalog.decorations
-        .filter(
-          (d) =>
-            d.position.y - s.toolbox.scroll + d.height >= box.y &&
-            d.position.y - s.toolbox.scroll < box.y + box.height,
-        )
-        .map(
-          (d) =>
-            `<g transform="translate(${d.position.x} ${d.position.y - s.toolbox.scroll})">${d.kind === 'checkbox' ? `<rect width="${d.width}" height="${d.height}" rx="3" fill="white" stroke="#888"/>` : d.kind === 'button' ? `<rect width="${d.width}" height="${d.height}" rx="4" fill="white" stroke="#c7c7c7"/>` : ''}<text x="${d.kind === 'button' ? d.width / 2 : 0}" y="${d.height / 2 + 4}" text-anchor="${d.kind === 'button' ? 'middle' : 'start'}" font-size="12" fill="#575e75">${escape(d.text)}</text></g>`,
-        )
-        .join(''),
-      m,
-    )}</g>` +
-    `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="#ccc"/>` +
+      .join('')}${catalog.decorations
+      .filter(
+        (d) =>
+          d.position.y - s.toolbox.scroll + d.height >= box.y &&
+          d.position.y - s.toolbox.scroll < box.y + box.height,
+      )
+      .map(
+        (d) =>
+          `<g transform="translate(${d.position.x} ${d.position.y - s.toolbox.scroll})">${d.kind === 'checkbox' ? `<rect width="${d.width}" height="${d.height}" rx="3" fill="${block('checkboxInactiveBackground', 'white')}" stroke="${block('checkboxInactiveBorder', '#888')}"/>` : d.kind === 'button' ? `<rect width="${d.width}" height="${d.height}" rx="4" fill="${gui('popover-background', 'white')}" stroke="${gui('ui-black-transparent', '#c7c7c7')}"/>` : ''}<text x="${d.kind === 'button' ? d.width / 2 : 0}" y="${d.height / 2 + 4}" text-anchor="${d.kind === 'button' ? 'middle' : 'start'}" font-size="12" fill="${gui('text-primary', '#575e75')}">${escape(d.text)}</text></g>`,
+      )
+      .join('')}</g>` +
+    `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="${block('scrollbar', '#ccc')}"/>` +
     `<g clip-path="url(#editor)">` +
     `<g transform="${dragTransform}">${s.nodes
       .filter((n) => n.dragging)
@@ -199,16 +196,14 @@ export function frameSvg(
       .join('')}</g>` +
     '</g>' +
     (s.input ? viewed(inputSvg(s.input)) : '') +
-    viewed(uiPaint(overlays, m)) +
+    viewed(overlays) +
     ((content: string) => (cursorInWorkspace ? viewed(content, false) : content))(
       (s.cursor.pressed
         ? `<circle cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="${s.cursor.button === 'right' ? '#4c97ff' : '#ff4c4c'}" opacity=".18"/>`
         : '') +
         `<path data-cursor-button="${s.cursor.button ?? 'left'}" transform="translate(${s.cursor.x} ${s.cursor.y})" d="M0 0 L0 23 L6 17 L11 28 L16 25 L11 15 L20 15 Z" fill="#242938" stroke="white" stroke-width="2"/>`,
     );
-  const svg = `<svg class="scene-${namespace}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${m.viewport.width}" height="${m.viewport.height}" viewBox="0 0 ${m.viewport.width} ${m.viewport.height}"><style>${(
-    m.theme + (m.colorTheme === 'dark' ? darkIme : '')
-  ).replace(
+  const svg = `<svg class="scene-${namespace}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${m.viewport.width}" height="${m.viewport.height}" viewBox="0 0 ${m.viewport.width} ${m.viewport.height}"><style>${m.theme.replace(
     /([^{}]+)\{/g,
     (_, selectors: string) =>
       selectors
@@ -428,10 +423,11 @@ export function mountPlayer(
     status.textContent = next.locale === 'en' ? 'Loading…' : '正在加载…';
     try {
       const scene =
-        next.locale === compiled.manifest.locale
-          ? { ...compiled, manifest: { ...compiled.manifest, colorTheme: next.theme } }
+        next.locale === compiled.manifest.locale &&
+        next.theme === (compiled.manifest.colorTheme ?? 'light')
+          ? compiled
           : await (options.loadVariant?.(next, controller.signal) ??
-              Promise.reject(Error('No locale variant loader configured')));
+              Promise.reject(Error('No appearance variant loader configured')));
       if (disposed || pending !== controller) return;
       assertResources(scene);
       if (

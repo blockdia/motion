@@ -14,7 +14,7 @@ import {
   type TargetCatalog,
   type ToolboxEntry,
 } from '@blockdia-motion/core';
-import { blocksCommit, guiCommit, imeTheme } from '@blockdia-motion/adapter-turbowarp';
+import { blocksCommit, guiCommit, imeThemeFor } from '@blockdia-motion/adapter-turbowarp';
 const hash = (data: string | Buffer) => createHash('sha256').update(data).digest('hex');
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -85,7 +85,7 @@ export async function createAdapter(options: {
       ),
       randomSeed: 0x4d6f7469,
       browser: '',
-      protocol: 9,
+      protocol: 10,
     },
   };
   const manifest: Manifest = {
@@ -121,9 +121,12 @@ export async function createAdapter(options: {
     const page = await browser.newPage();
     await page.goto(server.url + '/packages/asset-builder/prepare.html');
     await page.evaluate(
-      ({ project, locale }) => (window as any).startPreparation(project, locale),
-      { project: options.project, locale },
+      ({ project, locale, colorTheme }) =>
+        (window as any).startPreparation(project, locale, colorTheme),
+      { project: options.project, locale, colorTheme },
     );
+    manifest.appearance = await page.evaluate(() => (window as any).editorAppearance);
+    const imeTheme = imeThemeFor(colorTheme);
     const measurements = await page.evaluate((labels: string[]) => {
       const context = document.createElement('canvas').getContext('2d')!;
       const widths: Record<string, number> = {};
@@ -137,6 +140,7 @@ export async function createAdapter(options: {
     }, shellLabels);
     manifest.chrome = chrome({
       locale,
+      appearance: manifest.appearance,
       measurements,
       targetPanel: true,
       toolboxHeadings: false,
@@ -163,10 +167,11 @@ export async function createAdapter(options: {
         hash(
           JSON.stringify(
             canonical({
-              protocol: 9,
+              protocol: 10,
               targetId,
               source,
               locale: manifest.locale,
+              theme: colorTheme,
               definition: def,
               editing,
               markerId,

@@ -1,5 +1,5 @@
 /* Preparation-only pinned Blockly bridge. SVG normalization follows P0. */
-window.startPreparation = async function (project, locale = 'zh-CN') {
+window.startPreparation = async function (project, locale = 'zh-CN', theme = 'light') {
   // The pinned editor intentionally randomizes colour_picker defaults and generated IDs.
   // A preparation-only seed makes those real defaults reproducible, without replacing definitions.
   const originalRandom = Math.random;
@@ -9,6 +9,7 @@ window.startPreparation = async function (project, locale = 'zh-CN') {
     return randomState / 4294967296;
   };
   const B = Blockly;
+  window.editorAppearance = window.prepareEditorTheme(theme);
   B.Events.disable();
   B.recordSoundCallback = () => {};
   const editor = window.createEditorContext(project);
@@ -227,8 +228,8 @@ window.startPreparation = async function (project, locale = 'zh-CN') {
         width: Math.max(160, ...captured.map((o) => ctx.measureText(o.text).width + 32)),
         rowHeight: 28,
         fontSize: 13,
-        fill: '#ffffff',
-        stroke: '#b9b9be',
+        fill: B.Colours.contextMenuBackground,
+        stroke: B.Colours.contextMenuBorder,
         context: true,
       };
     } finally {

@@ -263,6 +263,7 @@ export interface Manifest {
   viewport: { width: number; height: number };
   locale: string;
   colorTheme?: 'light' | 'dark';
+  appearance?: { gui: Record<string, string>; blocks: Record<string, string> };
   theme: string;
   chrome: string;
   layout: {
@@ -519,6 +520,9 @@ export function assertResources(scene: CompiledScene): void {
     !m.targets ||
     typeof m.targets !== 'object' ||
     !Object.hasOwn(m.targets, scene.initial?.targetId) ||
+    (m.colorTheme === 'dark' && (!m.appearance?.gui || !m.appearance?.blocks)) ||
+    (m.appearance !== undefined &&
+      m.appearance.gui?.['color-scheme'] !== (m.colorTheme ?? 'light')) ||
     (m.colorTheme !== undefined && !['light', 'dark'].includes(m.colorTheme)) ||
     typeof m.theme !== 'string' ||
     typeof m.chrome !== 'string' ||

@@ -75,7 +75,7 @@
   <header class="toolbar">
     <label for="tutorial">教程示例</label>
     <select id="tutorial">
-      <option value="/artifacts/p3/scene.zh-CN.json">P3 · 视角与中英文变体</option>
+      <option value="/artifacts/p3/scene.zh-CN.light.json">P3 · 视角与中英文变体</option>
       <option value="/artifacts/all-api/scene.json">全部 API · 底层与交互动画</option>
       <option value="/artifacts/p2/scene.json">P2 · 常规代码编辑</option>
       <option value="/artifacts/p1b/scene.json">基础编辑</option>
@@ -110,7 +110,7 @@
     const themePicker = document.querySelector('#theme');
     const localePicker = document.querySelector('#locale');
     const examples = {
-      '/artifacts/p3/scene.zh-CN.json': {
+      '/artifacts/p3/scene.zh-CN.light.json': {
         description:
           '拖动或滚轮平移，Shift+滚轮横移，Control+滚轮缩放；继续播放恢复视角。聚焦画面后方向键平移，0 恢复。支持中英文与浅色、深色切换。',
         command: 'pnpm p3',
@@ -136,8 +136,18 @@
         command: 'pnpm p1c',
       },
     };
-    const initialUrl = new URLSearchParams(location.search).get('scene') || picker.value;
-    if (!Object.hasOwn(examples, initialUrl)) {
+    const p3Example = examples['/artifacts/p3/scene.zh-CN.light.json'];
+    for (const locale of ['zh-CN', 'en'])
+      for (const theme of ['light', 'dark']) {
+        examples[`/artifacts/p3/scene.${locale}.${theme}.json`] = p3Example;
+      }
+    const requestedUrl = new URLSearchParams(location.search).get('scene') || picker.value;
+    // Migrate previously published P3 preview links to the new complete resource variants.
+    const initialUrl = requestedUrl.replace(
+      /^\/artifacts\/p3\/scene\.(zh-CN|en)\.json$/,
+      '/artifacts/p3/scene.$1.light.json',
+    );
+    if (![...picker.options].some((option) => option.value === initialUrl)) {
       picker.add(new Option('自定义教程', initialUrl));
     }
     picker.value = initialUrl;
@@ -188,17 +198,21 @@
           throw Error('字体与教程资源不匹配，请使用准备素材时的 MOTION_FONT');
         player = window.player = mountPlayer(host, compiled, {
           async loadVariant(options, signal) {
-            if (!example?.variants) throw Error('此示例未准备语言变体，请选择 P3 示例');
-            const response = await fetch(`/artifacts/p3/scene.${options.locale}.json`, { signal });
-            if (!response.ok) throw Error('语言资源未准备，请运行 pnpm p3');
+            if (!example?.variants) throw Error('此示例未准备外观变体，请选择 P3 示例');
+            const response = await fetch(
+              `/artifacts/p3/scene.${options.locale}.${options.theme}.json`,
+              { signal },
+            );
+            if (!response.ok) throw Error('外观资源未准备，请运行 pnpm p3');
             const scene = await response.json();
             if (scene.manifest.source.fontSha256 !== digest) throw Error('变体字体不匹配');
-            return { ...scene, manifest: { ...scene.manifest, colorTheme: options.theme } };
+            return scene;
           },
         });
         themePicker.value = compiled.manifest.colorTheme || 'light';
         localePicker.value = compiled.manifest.locale;
         localePicker.disabled = !example?.variants;
+        themePicker.disabled = !example?.variants;
         window.ready = true;
         const locationUrl = new URL(location.href);
         locationUrl.searchParams.set('scene', url);

@@ -1,3 +1,4 @@
+import { Theme } from '../../.cache/gui/src/lib/themes';
 import Runtime from '../../.cache/gui/node_modules/scratch-vm/src/engine/runtime';
 import Blocks from '../../.cache/gui/node_modules/scratch-vm/src/engine/blocks';
 import convertBlocks from '../../.cache/gui/node_modules/scratch-vm/src/engine/adapter';
@@ -53,4 +54,36 @@ window.createEditorContext = (project) => {
       runtime.dispose();
     },
   };
+};
+
+// Resolve each native theme separately, including CSS variable references.
+window.prepareEditorTheme = (name) => {
+  const theme = name === 'dark' ? Theme.dark : Theme.light;
+  const values = theme.getGuiColors();
+  for (const [key, value] of Object.entries(values))
+    document.documentElement.style.setProperty(`--${key}`, value);
+  const probe = document.createElement('span');
+  document.body.append(probe);
+  const resolve = (value) => {
+    probe.style.color = '';
+    probe.style.color = value;
+    return probe.style.color ? getComputedStyle(probe).color : value;
+  };
+  const gui = Object.fromEntries(
+    Object.entries(values).map(([key, value]) => [
+      key,
+      key.startsWith('filter-') || key.includes('image') || key === 'color-scheme'
+        ? value
+        : resolve(value),
+    ]),
+  );
+  const colours = theme.getBlockColors();
+  Blockly.Colours.overrideColours(colours);
+  const blocks = Object.fromEntries(
+    Object.entries(colours)
+      .filter(([, value]) => typeof value === 'string')
+      .map(([key, value]) => [key, resolve(value)]),
+  );
+  probe.remove();
+  return { gui, blocks };
 };

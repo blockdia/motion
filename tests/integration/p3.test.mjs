@@ -4,13 +4,22 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
 import { serve, font } from '../../scripts/server.mjs';
 import { rasterFrame } from '../../packages/renderer-video/dist/index.js';
-import { evaluate } from '../../packages/core/dist/index.js';
+import { evaluate, assertResources } from '../../packages/core/dist/index.js';
 import { frameSvg } from '../../packages/renderer-browser/dist/index.js';
 
 test('P3 real variants, responsive player, view transforms, races and disposal', async () => {
+  await import('../../scripts/p3-reference.mjs');
   await import('../../scripts/p3.mjs');
-  const zh = JSON.parse(await readFile('artifacts/p3/scene.zh-CN.json'));
-  const en = JSON.parse(await readFile('artifacts/p3/scene.en.json'));
+  const zh = JSON.parse(await readFile('artifacts/p3/scene.zh-CN.light.json'));
+  const en = JSON.parse(await readFile('artifacts/p3/scene.en.light.json'));
+  const dark = JSON.parse(await readFile('artifacts/p3/scene.zh-CN.dark.json'));
+  const enDark = JSON.parse(await readFile('artifacts/p3/scene.en.dark.json'));
+  assert.notDeepEqual(zh.manifest.appearance, dark.manifest.appearance);
+  assert.notEqual(zh.manifest.chrome, dark.manifest.chrome);
+  assert.throws(
+    () => assertResources({ ...zh, manifest: { ...zh.manifest, colorTheme: 'dark' } }),
+    /SCHEMA/,
+  );
   assert.equal(zh.duration, en.duration);
   assert.equal(en.manifest.targets.sprite.categories[0].label, 'Motion');
   assert.notDeepEqual(zh.manifest.resources, en.manifest.resources);
@@ -191,7 +200,7 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
     }
     // Late results, cancellation, failed loads, and a retained disposed handle.
     const lifecycle = await page.evaluate(
-      async ({ zh, en }) => {
+      async ({ zh, en, dark }) => {
         window.player.dispose();
         const { mountPlayer } = await import('/packages/renderer-browser/dist/index.js');
         const host = document.querySelector('#player');
@@ -204,6 +213,7 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
         player.seek(2);
         const first = player.setOptions({ locale: 'en', theme: 'light' });
         const second = player.setOptions({ locale: 'zh-CN', theme: 'dark' });
+        jobs[1].resolve(dark);
         await second;
         jobs[0].resolve(en);
         await first;
@@ -212,7 +222,7 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
           player.appearance.theme === 'dark' &&
           jobs[0].signal.aborted;
         const failed = player.setOptions({ locale: 'en', theme: 'light' });
-        jobs[1].reject(Error('test load failure'));
+        jobs[2].reject(Error('test load failure'));
         await failed.catch(() => {});
         const preserved =
           player.time === 2 &&
@@ -220,7 +230,7 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
           host.getAttribute('aria-busy') === 'false';
         const late = player.setOptions({ locale: 'en', theme: 'light' });
         player.dispose();
-        jobs[2].resolve(en);
+        jobs[3].resolve(en);
         await late;
         player.play();
         player.pause();
@@ -233,10 +243,10 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
           empty: host.children.length === 0,
           released: !player.appearance,
           unchanged: JSON.stringify(zh) === original,
-          aborted: jobs[2].signal.aborted,
+          aborted: jobs[3].signal.aborted,
         };
       },
-      { zh, en },
+      { zh, en, dark },
     );
     assert.deepEqual(lifecycle, {
       latestWins: true,
@@ -250,14 +260,35 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
     await page.setViewportSize({ width: 1280, height: 720 });
     for (const locale of ['zh-CN', 'en'])
       for (const theme of ['light', 'dark']) {
-        const base = locale === 'en' ? en : zh;
-        const scene = { ...base, manifest: { ...base.manifest, colorTheme: theme } };
+        const scene =
+          locale === 'en' ? (theme === 'dark' ? enDark : en) : theme === 'dark' ? dark : zh;
         const name = `${locale}-${theme}`;
+        const reference = JSON.parse(await readFile(`artifacts/p3/reference-${theme}.json`));
         const svg = frameSvg(time, scene);
         await page.setContent(
           `<style>@font-face{font-family:'Motion Sans';src:url('${server.url}/font.ttf')}body{margin:0}</style>${svg}`,
         );
         await page.evaluate(() => document.fonts.ready);
+        const paints = await page.evaluate(() => {
+          const fill = (selector) => getComputedStyle(document.querySelector(selector)).fill;
+          return {
+            menu: fill('[data-surface="menu"]'),
+            feedbackBackground: fill('[data-shell-region="feedback"] rect'),
+            feedbackText: fill('[data-shell-region="feedback"] text'),
+            workspace: fill('[data-surface="workspace"]'),
+            flyout: fill('[data-surface="flyout"]'),
+            flyoutOpacity: getComputedStyle(document.querySelector('[data-surface="flyout"]'))
+              .fillOpacity,
+            category: fill('[data-surface="category"]'),
+            input: fill('[data-shell-region="search"] rect'),
+          };
+        });
+        assert.deepEqual(paints, reference, `${locale}/${theme}: differs from the real GUI`);
+        assert.equal(
+          await page.locator('[data-surface="stage"]').evaluate((el) => getComputedStyle(el).fill),
+          'rgb(255, 255, 255)',
+        );
+
         const layout = await page.evaluate(() => {
           const failures = [];
           const widths = {};

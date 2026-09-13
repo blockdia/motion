@@ -1,3 +1,4 @@
+import { guiColor } from './appearance.js';
 import { targetPanelLayout, type Manifest } from '@blockdia-motion/core';
 
 const escape = (value: string) =>
@@ -25,6 +26,7 @@ function label(value: string, width: number): string {
 // Fixed zh-CN/light GUI geometry, shared by browser and video rendering.
 // The chrome slot precedes the floating add buttons, so tiles never cover them.
 export function targetPanelSvg(manifest: Manifest, targetId: string, offset?: number): string {
+  const gui = (key: string, fallback: string) => guiColor(manifest, key, fallback);
   const { project, layout } = manifest;
   const list = layout.spriteList,
     stageBox = layout.backdrop;
@@ -37,17 +39,17 @@ export function targetPanelSvg(manifest: Manifest, targetId: string, offset?: nu
     offset,
   );
   const text = (x: number, y: number, value: string, extra = '') =>
-    `<text x="${x}" y="${y}" font-size="10" fill="#575e75" ${extra}>${escape(value)}</text>`;
+    `<text x="${x}" y="${y}" font-size="10" fill="${gui('text-primary', '#575e75')}" ${extra}>${escape(value)}</text>`;
   const tiles = sprites
     .map((target, index) => {
       const { x, y } = tile(index);
       const active = target.id === targetId;
       return `<g data-target-id="${escape(target.id)}" data-selected="${active}"><title>${escape(target.name)}</title>
-      ${active ? `<rect x="${x - 3}" y="${y - 3}" width="${tileWidth + 6}" height="${tileHeight + 6}" rx="9" fill="#ffb5b5"/>` : ''}
-      <rect x="${x}" y="${y}" width="${tileWidth}" height="${tileHeight}" rx="7" fill="${active ? 'white' : '#e9f1fc'}" stroke="${active ? '#ff4c4c' : '#c7c7c7'}" stroke-width="2"/>
+      ${active ? `<rect x="${x - 3}" y="${y - 3}" width="${tileWidth + 6}" height="${tileHeight + 6}" rx="9" fill="${gui('looks-transparent', '#ffb5b5')}"/>` : ''}
+      <rect x="${x}" y="${y}" width="${tileWidth}" height="${tileHeight}" rx="7" fill="${active ? gui('ui-white', 'white') : gui('ui-secondary', '#e9f1fc')}" stroke="${active ? gui('looks-secondary', '#ff4c4c') : gui('ui-black-transparent', '#c7c7c7')}" stroke-width="2"/>
       ${active ? `<path d="M${x + 1} ${y + 40} h${tileWidth - 2} v17 q0 6 -6 6 h${-(tileWidth - 14)} q-6 0 -6 -6Z" fill="#ff4c4c"/>` : ''}
       <defs><clipPath id="sprite-name-${index}"><rect x="${x + 4}" y="${y + 40}" width="${tileWidth - 8}" height="22"/></clipPath></defs>
-      <text x="${x + tileWidth / 2}" y="${y + 55}" text-anchor="middle" font-size="10" fill="${active ? 'white' : '#575e75'}" clip-path="url(#sprite-name-${index})">${escape(label(target.name, tileWidth - 8))}</text>
+      <text x="${x + tileWidth / 2}" y="${y + 55}" text-anchor="middle" font-size="10" fill="${active ? 'white' : gui('text-primary', '#575e75')}" clip-path="url(#sprite-name-${index})">${escape(label(target.name, tileWidth - 8))}</text>
     </g>`;
     })
     .join('');
@@ -83,7 +85,7 @@ export function targetPanelSvg(manifest: Manifest, targetId: string, offset?: nu
         const active = !stageSelected && (key === 'show' ? selected.visible : !selected.visible);
         const x = 832 + index * 33;
         return `<g data-visibility="${key}" aria-pressed="${active}">
-        <path d="${index === 0 ? `M${x + 3} 518 H${x + 33} V550 H${x + 3} Q${x} 550 ${x} 547 V521 Q${x} 518 ${x + 3} 518Z` : `M${x} 518 H${x + 30} Q${x + 33} 518 ${x + 33} 521 V547 Q${x + 33} 550 ${x + 30} 550 H${x}Z`}" fill="${active ? '#ffe5e5' : 'white'}" stroke="#d4d4d4"/>
+        <path d="${index === 0 ? `M${x + 3} 518 H${x + 33} V550 H${x + 3} Q${x} 550 ${x} 547 V521 Q${x} 518 ${x + 3} 518Z` : `M${x} 518 H${x + 30} Q${x + 33} 518 ${x + 33} 521 V547 Q${x + 33} 550 ${x + 30} 550 H${x}Z`}" fill="${active ? gui('looks-light-transparent', '#ffe5e5') : gui('ui-white', 'white')}" stroke="${gui('ui-black-transparent', '#d4d4d4')}"/>
         <use href="#target-${key}-icon" filter="url(#target-icon-${active ? 'active' : 'gray'})"/>
       </g>`;
       })
@@ -98,7 +100,7 @@ export function targetPanelSvg(manifest: Manifest, targetId: string, offset?: nu
     <g data-target-id="${escape(stage.id)}" data-selected="${stageSelected}"><title>${escape(stage.name)}</title>
     ${
       stageSelected
-        ? `<rect x="${stageBox.x - 2}" y="${stageBox.y - 2}" width="${stageBox.width + 4}" height="${stageBox.height + 4}" rx="10" fill="none" stroke="#ffb5b5" stroke-width="4"/>
+        ? `<rect x="${stageBox.x - 2}" y="${stageBox.y - 2}" width="${stageBox.width + 4}" height="${stageBox.height + 4}" rx="10" fill="none" stroke="${gui('looks-transparent', '#ffb5b5')}" stroke-width="4"/>
       <rect x="${stageBox.x}" y="${stageBox.y}" width="${stageBox.width}" height="${stageBox.height}" rx="8" fill="none" stroke="#ff4c4c"/>
       <path d="M${stageBox.x + 1} ${stageBox.y + 42} v-34 q0 -7 7 -7 h${stageBox.width - 16} q7 0 7 7 v34Z" fill="#ff4c4c"/>
       ${text(stageBox.x + stageBox.width / 2, 489, '舞台', 'text-anchor="middle" style="fill:white" font-weight="bold"')}`
