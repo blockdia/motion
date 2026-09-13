@@ -134,7 +134,7 @@ export interface TutorialSpec {
   project: ProjectContext;
   initialTarget: string;
   viewport: { width: 1280; height: 720 };
-  defaults: { theme: 'light'; locale: 'zh-CN' };
+  defaults: { theme: 'light' | 'dark'; locale: 'zh-CN' | 'en' };
   steps: Step[];
 }
 export interface Anchor extends Point {
@@ -262,6 +262,7 @@ export interface Manifest {
   };
   viewport: { width: number; height: number };
   locale: string;
+  colorTheme?: 'light' | 'dark';
   theme: string;
   chrome: string;
   layout: {
@@ -518,6 +519,7 @@ export function assertResources(scene: CompiledScene): void {
     !m.targets ||
     typeof m.targets !== 'object' ||
     !Object.hasOwn(m.targets, scene.initial?.targetId) ||
+    (m.colorTheme !== undefined && !['light', 'dark'].includes(m.colorTheme)) ||
     typeof m.theme !== 'string' ||
     typeof m.chrome !== 'string' ||
     typeof m.source?.fontSha256 !== 'string'

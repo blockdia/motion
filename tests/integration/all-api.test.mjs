@@ -84,11 +84,11 @@ test('all authoring operations compile and play in the consuming playground', as
         evaluate(t, scene).overlays.length,
       );
     }
-    await page.locator('#player button').click();
+    await page.getByRole('button', { name: '播放', exact: true }).click();
     await page.waitForFunction(
       () => document.querySelector('#player button').textContent === '暂停',
     );
-    await page.locator('#player button').click();
+    await page.getByRole('button', { name: '暂停', exact: true }).click();
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

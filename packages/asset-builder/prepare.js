@@ -1,5 +1,5 @@
 /* Preparation-only pinned Blockly bridge. SVG normalization follows P0. */
-window.startPreparation = async function (project) {
+window.startPreparation = async function (project, locale = 'zh-CN') {
   // The pinned editor intentionally randomizes colour_picker defaults and generated IDs.
   // A preparation-only seed makes those real defaults reproducible, without replacing definitions.
   const originalRandom = Math.random;
@@ -13,7 +13,7 @@ window.startPreparation = async function (project) {
   B.recordSoundCallback = () => {};
   const editor = window.createEditorContext(project);
   let currentTarget;
-  B.ScratchMsgs.setLocale('zh-cn');
+  B.ScratchMsgs.setLocale(locale === 'zh-CN' ? 'zh-cn' : 'en');
   const font = new FontFace('Motion Sans', 'url(/font.ttf)');
   await font.load();
   document.fonts.add(font);

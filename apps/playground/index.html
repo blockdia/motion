@@ -20,6 +20,7 @@
     }
     footer {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 16px;
       padding: 18px;
@@ -74,12 +75,27 @@
   <header class="toolbar">
     <label for="tutorial">教程示例</label>
     <select id="tutorial">
+      <option value="/artifacts/p3/scene.zh-CN.json">P3 · 视角与中英文变体</option>
       <option value="/artifacts/all-api/scene.json">全部 API · 底层与交互动画</option>
       <option value="/artifacts/p2/scene.json">P2 · 常规代码编辑</option>
       <option value="/artifacts/p1b/scene.json">基础编辑</option>
       <option value="/artifacts/p1c/scene.json">多角色与完整工具箱</option>
     </select>
     <button id="reload" type="button">重新加载</button>
+    <label
+      >主题
+      <select id="theme">
+        <option value="light">浅色</option>
+        <option value="dark">深色</option>
+      </select></label
+    >
+    <label
+      >语言
+      <select id="locale">
+        <option value="zh-CN">中文</option>
+        <option value="en">English</option>
+      </select></label
+    >
     <p id="description"></p>
   </header>
   <p id="status" role="status" aria-live="polite"></p>
@@ -91,7 +107,15 @@
     const host = document.querySelector('#player');
     const status = document.querySelector('#status');
     const errorBox = document.querySelector('#error');
+    const themePicker = document.querySelector('#theme');
+    const localePicker = document.querySelector('#locale');
     const examples = {
+      '/artifacts/p3/scene.zh-CN.json': {
+        description:
+          '拖动工作区平移，滚轮缩放；继续播放恢复视角。聚焦画面后方向键平移，0 恢复。支持中英文与浅色、深色切换。',
+        command: 'pnpm p3',
+        variants: true,
+      },
       '/artifacts/all-api/scene.json': {
         description: '底层编辑、工具箱拖动、原生连接阴影、右键菜单、两种删除、自动输入与角色点击。',
         source: 'all-api',
@@ -162,7 +186,19 @@
         if (current !== generation) return;
         if (digest !== compiled.manifest?.source?.fontSha256)
           throw Error('字体与教程资源不匹配，请使用准备素材时的 MOTION_FONT');
-        player = window.player = mountPlayer(host, compiled);
+        player = window.player = mountPlayer(host, compiled, {
+          async loadVariant(options, signal) {
+            if (!example?.variants) throw Error('此示例未准备语言变体，请选择 P3 示例');
+            const response = await fetch(`/artifacts/p3/scene.${options.locale}.json`, { signal });
+            if (!response.ok) throw Error('语言资源未准备，请运行 pnpm p3');
+            const scene = await response.json();
+            if (scene.manifest.source.fontSha256 !== digest) throw Error('变体字体不匹配');
+            return { ...scene, manifest: { ...scene.manifest, colorTheme: options.theme } };
+          },
+        });
+        themePicker.value = compiled.manifest.colorTheme || 'light';
+        localePicker.value = compiled.manifest.locale;
+        localePicker.disabled = !example?.variants;
         window.ready = true;
         const locationUrl = new URL(location.href);
         locationUrl.searchParams.set('scene', url);
@@ -177,6 +213,24 @@
         if (current === generation) host.setAttribute('aria-busy', 'false');
       }
     }
+    async function changeAppearance() {
+      const currentPlayer = player;
+      if (!currentPlayer) return;
+      try {
+        await currentPlayer.setOptions({ theme: themePicker.value, locale: localePicker.value });
+      } catch (error) {
+        if (player !== currentPlayer) return;
+        themePicker.value = currentPlayer.appearance.theme;
+        localePicker.value = currentPlayer.appearance.locale;
+      }
+    }
+    themePicker.addEventListener('change', changeAppearance);
+    localePicker.addEventListener('change', changeAppearance);
+    window.addEventListener('pagehide', () => {
+      generation++;
+      controller?.abort();
+      player?.dispose();
+    });
     window.renderAt = (time) => window.player?.seek(time);
     picker.addEventListener('change', () => loadScene(picker.value));
     document.querySelector('#reload').addEventListener('click', () => loadScene(picker.value));

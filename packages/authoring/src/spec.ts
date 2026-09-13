@@ -172,8 +172,8 @@ export function parseTutorial(value: unknown): TutorialSpec {
   if (v.width !== 1280 || v.height !== 720)
     fail('UNSUPPORTED', 'viewport', 'P1b uses the P1a 1280x720 layout');
   const d = object(o.defaults, 'defaults', ['theme', 'locale']);
-  if (d.theme !== 'light' || d.locale !== 'zh-CN')
-    fail('UNSUPPORTED', 'defaults', 'P1b supports light / zh-CN');
+  if ((d.theme !== 'light' && d.theme !== 'dark') || (d.locale !== 'zh-CN' && d.locale !== 'en'))
+    fail('UNSUPPORTED', 'defaults', 'Supported variants: light or dark / zh-CN or en');
   validateProject(o.project);
   string(o.initialTarget, 'initialTarget');
   if (

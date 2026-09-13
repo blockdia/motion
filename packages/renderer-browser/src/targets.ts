@@ -54,7 +54,7 @@ export function targetPanelSvg(manifest: Manifest, targetId: string, offset?: nu
   const stageSelected = stage.id === targetId;
   const properties = `<g data-ui="target-properties" aria-disabled="${stageSelected}">
     <title>${escape(selected.name)}</title>
-    ${text(844, 497, stageSelected ? '名字' : label(selected.name, 102), `data-property="name" clip-path="url(#target-name)" font-weight="bold"${stageSelected ? ' style="fill:#777"' : ''}`)}
+    ${text(844, 497, stageSelected ? (manifest.locale === 'en' ? 'Name' : '名字') : label(selected.name, 102), `data-property="name" clip-path="url(#target-name)" font-weight="bold"${stageSelected ? ' style="fill:#777"' : ''}`)}
     ${[
       ['x', 1044, 497],
       ['y', 1155, 497],

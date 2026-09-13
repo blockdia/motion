@@ -37,6 +37,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
   if (
     manifest.adapter !== spec.adapter ||
     manifest.locale !== spec.defaults.locale ||
+    (manifest.colorTheme ?? 'light') !== spec.defaults.theme ||
     manifest.viewport.width !== spec.viewport.width ||
     manifest.viewport.height !== spec.viewport.height
   )

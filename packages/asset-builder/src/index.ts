@@ -29,7 +29,13 @@ function canonical(value: unknown): unknown {
 export async function createAdapter(options: {
   root?: string;
   project: ProjectContext;
+  locale?: 'zh-CN' | 'en';
+  theme?: 'light' | 'dark';
 }): Promise<PreparationAdapter & { dispose(): Promise<void> }> {
+  const locale = options.locale ?? 'zh-CN';
+  const colorTheme = options.theme ?? 'light';
+  if (!['zh-CN', 'en'].includes(locale) || !['light', 'dark'].includes(colorTheme))
+    fail('UNSUPPORTED', 'prepare', 'Unknown locale or theme');
   const root = resolve(options.root ?? process.cwd());
   const { serve, font } = await import(pathToFileURL(root + '/scripts/server.mjs').href);
   const { layout, anchors, catalogLayout } = await import(
@@ -84,7 +90,8 @@ export async function createAdapter(options: {
     adapter: 'turbowarp',
     source,
     viewport: { width: 1280, height: 720 },
-    locale: 'zh-CN',
+    locale,
+    colorTheme,
     theme: '',
     chrome: chrome({
       targetPanel: true,
@@ -110,7 +117,10 @@ export async function createAdapter(options: {
     source.catalog.browser = browser.version();
     const page = await browser.newPage();
     await page.goto(server.url + '/packages/asset-builder/prepare.html');
-    await page.evaluate((project) => (window as any).startPreparation(project), options.project);
+    await page.evaluate(
+      ({ project, locale }) => (window as any).startPreparation(project, locale),
+      { project: options.project, locale },
+    );
     let targetId = options.project.targets[0]!.id;
     async function prepareResource(
       def: BlockDefinition,

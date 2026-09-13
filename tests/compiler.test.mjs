@@ -166,6 +166,15 @@ async function setup() {
   return a;
 }
 test('TS builder and JSON share strict schema; no author coordinates/selectors', () => {
+  for (const theme of ['light', 'dark'])
+    for (const locale of ['zh-CN', 'en']) {
+      const variant = { ...spec([{ op: 'wait', duration: 1 }]), defaults: { theme, locale } };
+      assert.deepEqual(parseTutorial(variant).defaults, { theme, locale });
+      assert.throws(
+        () => parseTutorial({ ...variant, defaults: { theme: [theme], locale } }),
+        /UNSUPPORTED/,
+      );
+    }
   const built = defineTutorial({
     ...spec([]),
     build: (s) => s.sequence(s.wait(0.1), s.create([hat('h')], { to: s.workspace.slot('main') })),
@@ -676,9 +685,14 @@ test('playback tolerates a first RAF timestamp preceding play without moving bac
   const host = {
     innerHTML: '',
     replaceChildren() {},
+    removeAttribute() {},
     querySelector(selector) {
       if (!elements.has(selector))
-        elements.set(selector, { addEventListener() {}, removeEventListener() {} });
+        elements.set(selector, {
+          addEventListener() {},
+          removeEventListener() {},
+          replaceChildren() {},
+        });
       return elements.get(selector);
     },
   };

@@ -34,7 +34,7 @@ async function main() {
       ? JSON.parse(await readFile(input, 'utf8'))
       : (await import(pathToFileURL(resolve(input)).href)).default;
   const spec = parseTutorial(raw);
-  const adapter = await createAdapter({ project: spec.project });
+  const adapter = await createAdapter({ project: spec.project, ...spec.defaults });
   try {
     if (command === 'catalog') {
       await mkdir(dirname(resolve(output!)), { recursive: true });

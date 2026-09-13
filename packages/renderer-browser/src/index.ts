@@ -7,6 +7,7 @@ import {
   type Rect,
   type Snapshot,
 } from '@blockdia-motion/core';
+import { shellSvg, uiPaint, darkIme } from './appearance.js';
 import { targetPanelSvg } from './targets.js';
 const escape = (s: string) =>
   s
@@ -31,7 +32,19 @@ function inputSvg(input: NonNullable<Snapshot['input']>): string {
     ${selected ? '' : `<path d="M${caret} ${b.y + (b.height - a.fontSize * 1.2) / 2} v${a.fontSize * 1.2}" stroke="${a.textColor}" stroke-width="1"/>`}
     </g></g></g>`;
 }
-export function frameSvg(time: number, compiled: CompiledScene, namespace = 'motion'): string {
+export interface WorkspaceView {
+  x: number;
+  y: number;
+  zoom: number;
+}
+export function frameSvg(
+  time: number,
+  compiled: CompiledScene,
+  namespace = 'motion',
+  view: WorkspaceView = { x: 0, y: 0, zoom: 1 },
+): string {
+  if (![view.x, view.y, view.zoom].every(Number.isFinite) || view.zoom < 0.25 || view.zoom > 4)
+    fail('VIEW', 'render', 'Invalid workspace view');
   if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(namespace))
     fail('NAMESPACE', 'render', 'Invalid SVG namespace');
   const s = evaluate(time, compiled),
@@ -54,17 +67,23 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
       .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${prefix}-${id}`);
     return `<g opacity="${opacity}" transform="translate(${x} ${y}) scale(${scale})">${dragging ? `<defs><filter id="${prefix}-shadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feComponentTransfer result="offsetBlur"><feFuncA type="linear" slope=".3"/></feComponentTransfer><feComposite in="SourceGraphic" in2="offsetBlur" operator="over"/></filter></defs><g filter="url(#${prefix}-shadow)">${content}</g>` : content}</g>`;
   };
+  const w = m.layout.workspace;
+  const transform = `translate(${w.x + view.x} ${w.y + view.y}) scale(${view.zoom}) translate(${-w.x} ${-w.y})`;
+  const viewed = (content: string, clip = true) =>
+    `${clip ? '<g clip-path="url(#workspace)">' : ''}<g data-workspace-view="true" transform="${transform}">${content.replaceAll(' clip-path="url(#workspace)"', '')}</g>${clip ? '</g>' : ''}`;
   const catalog = m.targets[s.targetId];
   if (!catalog) fail('TARGET', 'render', `Missing target catalog ${s.targetId}`);
   const category = catalog.categories.find((c) => c.key === s.toolbox.category);
   const box = m.layout.toolbox;
-  const workspace = `<g clip-path="url(#workspace)">${s.nodes
-    .filter((n) => !n.dragging)
-    .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `root${i}`))
-    .join('')}</g>`;
+  const workspace = viewed(
+    `<g>${s.nodes
+      .filter((n) => !n.dragging)
+      .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `root${i}`))
+      .join('')}</g>`,
+  );
   const workspaceSlot = '<g data-slot="workspace"></g>';
-  const chrome = m.chrome.replace('<g data-slot="targets"></g>', () =>
-    targetPanelSvg(m, s.targetId, s.targetScroll),
+  const chrome = shellSvg(m.chrome, m).replace('<g data-slot="targets"></g>', () =>
+    uiPaint(targetPanelSvg(m, s.targetId, s.targetScroll), m),
   );
   const overlays = s.overlays
     .map((o) => {
@@ -127,7 +146,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
     catalog.categories
       .map(
         (c) =>
-          `<circle cx="${m.layout.categories.x + m.layout.categories.width / 2}" cy="${c.y}" r="9.5" fill="${escape(c.color ?? '#888')}"/><text x="${m.layout.categories.x + m.layout.categories.width / 2}" y="${c.y + 23}" text-anchor="middle" font-size="10.4" fill="#575e75">${escape(c.label)}</text>`,
+          `<circle cx="${m.layout.categories.x + m.layout.categories.width / 2}" cy="${c.y}" r="9.5" fill="${escape(c.color ?? '#888')}"/><text x="${m.layout.categories.x + m.layout.categories.width / 2}" y="${c.y + 23}" text-anchor="middle" font-size="10.4" fill="${m.colorTheme === 'dark' ? '#eeeeee' : '#575e75'}">${escape(c.label)}</text>`,
       )
       .join('') +
     (category
@@ -140,29 +159,48 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
         return top < box.y + box.height && top + b.height * scale > box.y;
       })
       .map((e, i) => node(e.asset, e.position.x, e.position.y - s.toolbox.scroll, 1, `tool${i}`))
-      .join('')}${catalog.decorations
-      .filter(
-        (d) =>
-          d.position.y - s.toolbox.scroll + d.height >= box.y &&
-          d.position.y - s.toolbox.scroll < box.y + box.height,
-      )
-      .map(
-        (d) =>
-          `<g transform="translate(${d.position.x} ${d.position.y - s.toolbox.scroll})">${d.kind === 'checkbox' ? `<rect width="${d.width}" height="${d.height}" rx="3" fill="white" stroke="#888"/>` : d.kind === 'button' ? `<rect width="${d.width}" height="${d.height}" rx="4" fill="white" stroke="#c7c7c7"/>` : ''}<text x="${d.kind === 'button' ? d.width / 2 : 0}" y="${d.height / 2 + 4}" text-anchor="${d.kind === 'button' ? 'middle' : 'start'}" font-size="12" fill="#575e75">${escape(d.text)}</text></g>`,
-      )
-      .join('')}</g>` +
+      .join('')}${uiPaint(
+      catalog.decorations
+        .filter(
+          (d) =>
+            d.position.y - s.toolbox.scroll + d.height >= box.y &&
+            d.position.y - s.toolbox.scroll < box.y + box.height,
+        )
+        .map(
+          (d) =>
+            `<g transform="translate(${d.position.x} ${d.position.y - s.toolbox.scroll})">${d.kind === 'checkbox' ? `<rect width="${d.width}" height="${d.height}" rx="3" fill="white" stroke="#888"/>` : d.kind === 'button' ? `<rect width="${d.width}" height="${d.height}" rx="4" fill="white" stroke="#c7c7c7"/>` : ''}<text x="${d.kind === 'button' ? d.width / 2 : 0}" y="${d.height / 2 + 4}" text-anchor="${d.kind === 'button' ? 'middle' : 'start'}" font-size="12" fill="#575e75">${escape(d.text)}</text></g>`,
+        )
+        .join(''),
+      m,
+    )}</g>` +
     `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="#ccc"/>` +
-    `<g clip-path="url(#editor)">${s.nodes
-      .filter((n) => n.dragging)
-      .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`, true))
-      .join('')}</g>` +
-    (s.input ? inputSvg(s.input) : '') +
-    overlays +
-    (s.cursor.pressed
-      ? `<circle cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="${s.cursor.button === 'right' ? '#4c97ff' : '#ff4c4c'}" opacity=".18"/>`
-      : '') +
-    `<path data-cursor-button="${s.cursor.button ?? 'left'}" transform="translate(${s.cursor.x} ${s.cursor.y})" d="M0 0 L0 23 L6 17 L11 28 L16 25 L11 15 L20 15 Z" fill="#242938" stroke="white" stroke-width="2"/>`;
-  const svg = `<svg class="scene-${namespace}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${m.viewport.width}" height="${m.viewport.height}" viewBox="0 0 ${m.viewport.width} ${m.viewport.height}"><style>${m.theme.replace(
+    `<g clip-path="url(#editor)">` +
+    viewed(
+      `<g>${s.nodes
+        .filter((n) => n.dragging)
+        .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`, true))
+        .join('')}</g>`,
+      false,
+    ) +
+    '</g>' +
+    (s.input ? viewed(inputSvg(s.input)) : '') +
+    viewed(uiPaint(overlays, m)) +
+    ((content: string) =>
+      s.nodes.some((node) => node.dragging) ||
+      (s.cursor.x >= box.x + box.width &&
+        s.cursor.x <= w.x + w.width &&
+        s.cursor.y >= w.y &&
+        s.cursor.y <= w.y + w.height)
+        ? viewed(content, false)
+        : content)(
+      (s.cursor.pressed
+        ? `<circle cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="${s.cursor.button === 'right' ? '#4c97ff' : '#ff4c4c'}" opacity=".18"/>`
+        : '') +
+        `<path data-cursor-button="${s.cursor.button ?? 'left'}" transform="translate(${s.cursor.x} ${s.cursor.y})" d="M0 0 L0 23 L6 17 L11 28 L16 25 L11 15 L20 15 Z" fill="#242938" stroke="white" stroke-width="2"/>`,
+    );
+  const svg = `<svg class="scene-${namespace}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${m.viewport.width}" height="${m.viewport.height}" viewBox="0 0 ${m.viewport.width} ${m.viewport.height}"><style>${(
+    m.theme + (m.colorTheme === 'dark' ? darkIme : '')
+  ).replace(
     /([^{}]+)\{/g,
     (_, selectors: string) =>
       selectors
@@ -176,49 +214,87 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
     .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${namespace}-${id}`);
 }
 let playerId = 0;
-export function mountPlayer(host: HTMLElement, compiled: CompiledScene) {
-  assertResources(compiled);
+export interface PlayerOptions {
+  loadVariant?: (
+    options: { locale: 'zh-CN' | 'en'; theme: 'light' | 'dark' },
+    signal: AbortSignal,
+  ) => Promise<CompiledScene>;
+}
+export function mountPlayer(
+  host: HTMLElement,
+  initial: CompiledScene | undefined,
+  options: PlayerOptions = {},
+) {
+  if (!initial) fail('RESOURCE', 'player', 'Missing scene');
+  assertResources(initial);
+  let compiled: CompiledScene | undefined = initial;
+  initial = undefined;
   const namespace = `player${++playerId}`;
   host.innerHTML =
-    '<div class="motion-frame"></div><footer><button type="button">播放</button><input type="range" min="0" step="any" aria-label="播放时间"><output></output></footer>';
+    '<div class="motion-frame" tabindex="0" aria-label="Workspace: drag to pan, scroll to zoom"></div><footer><button type="button">播放</button><input type="range" min="0" step="any" aria-label="播放时间"><output></output><button type="button" data-reset>恢复视角</button></footer><p role="status" aria-live="polite"></p>';
   const frame = host.querySelector<HTMLDivElement>('.motion-frame')!,
     button = host.querySelector('button')!,
     range = host.querySelector('input')!,
-    output = host.querySelector('output')!;
-  range.max = String(compiled.duration);
+    output = host.querySelector('output')!,
+    reset = host.querySelector<HTMLButtonElement>('[data-reset]')!,
+    status = host.querySelector<HTMLElement>('[role="status"]')!;
+  frame.style && (frame.style.touchAction = 'none');
   let time = 0,
     playing = false,
     startTime = 0,
     startClock = 0,
     request = 0,
     disposed = false;
+  let view: WorkspaceView = { x: 0, y: 0, zoom: 1 };
+  let drag: { id: number; x: number; y: number } | undefined;
+  let pending: AbortController | undefined;
   function render() {
-    frame.innerHTML = frameSvg(time, compiled, namespace);
+    if (!compiled || disposed) return;
+    frame.innerHTML = frameSvg(time, compiled, namespace, view);
+    range.max = String(compiled.duration);
     range.value = String(time);
     output.value = `${time.toFixed(2)} / ${compiled.duration.toFixed(2)} s`;
-    button.textContent = playing ? '暂停' : '播放';
+    button.textContent =
+      compiled.manifest.locale === 'en' ? (playing ? 'Pause' : 'Play') : playing ? '暂停' : '播放';
+    reset.textContent = compiled.manifest.locale === 'en' ? 'Reset view' : '恢复视角';
   }
   function pause() {
+    if (disposed) return;
+    if (playing && compiled)
+      time = Math.min(
+        compiled.duration,
+        startTime + Math.max(0, performance.now() - startClock) / 1000,
+      );
     playing = false;
     cancelAnimationFrame(request);
     render();
   }
+  function endDrag() {
+    if (drag && frame.hasPointerCapture?.(drag.id)) frame.releasePointerCapture(drag.id);
+    drag = undefined;
+  }
+  function resetView() {
+    endDrag();
+    view = { x: 0, y: 0, zoom: 1 };
+    render();
+  }
   function seek(t: number) {
-    if (disposed) return;
+    if (disposed || !compiled) return;
     if (!Number.isFinite(t) || t < 0) fail('TIME', 'player', 'Invalid seek time');
-    time = Math.min(t, compiled.duration);
     pause();
+    time = Math.min(t, compiled.duration);
+    resetView();
   }
   function tick(now: number) {
-    if (!playing || disposed) return;
-    // RAF timestamps describe the frame start and may precede play() in that frame.
+    if (!playing || disposed || !compiled) return;
     time = Math.min(compiled.duration, startTime + Math.max(0, now - startClock) / 1000);
     if (time === compiled.duration) playing = false;
     render();
     if (playing) request = requestAnimationFrame(tick);
   }
   function play() {
-    if (disposed) return;
+    if (disposed || !compiled || pending) return;
+    resetView();
     if (time >= compiled.duration) time = 0;
     playing = true;
     startTime = time;
@@ -227,28 +303,179 @@ export function mountPlayer(host: HTMLElement, compiled: CompiledScene) {
     render();
     request = requestAnimationFrame(tick);
   }
+  function point(event: MouseEvent) {
+    const svg = frame.querySelector('svg')!;
+    const matrix = svg.getScreenCTM();
+    if (!matrix) return null;
+    return new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix.inverse());
+  }
+  function inside(p: { x: number; y: number }) {
+    const { workspace: w, toolbox: b } = compiled!.manifest.layout;
+    return p.x >= b.x + b.width && p.x < w.x + w.width && p.y >= w.y && p.y < w.y + w.height;
+  }
+  function down(event: PointerEvent) {
+    if (pending || event.button !== 0) return;
+    const p = point(event);
+    if (!p || !inside(p)) return;
+    event.preventDefault();
+    pause();
+    drag = { id: event.pointerId, x: p.x, y: p.y };
+    frame.setPointerCapture(event.pointerId);
+  }
+  function move(event: PointerEvent) {
+    if (!drag || drag.id !== event.pointerId) return;
+    const p = point(event);
+    if (!p) return;
+    view.x += p.x - drag.x;
+    view.y += p.y - drag.y;
+    drag.x = p.x;
+    drag.y = p.y;
+    render();
+  }
+  function up(event: PointerEvent) {
+    if (drag?.id === event.pointerId) endDrag();
+  }
+  function wheel(event: WheelEvent) {
+    if (pending) return;
+    const p = point(event);
+    if (!p || !inside(p)) return;
+    event.preventDefault();
+    pause();
+    const w = compiled!.manifest.layout.workspace;
+    const delta =
+      event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? w.height : 1);
+    const zoom = Math.max(0.25, Math.min(4, view.zoom * Math.exp(-delta * 0.002)));
+    const ratio = zoom / view.zoom;
+    view = {
+      x: p.x - w.x - (p.x - w.x - view.x) * ratio,
+      y: p.y - w.y - (p.y - w.y - view.y) * ratio,
+      zoom,
+    };
+    render();
+  }
+  function key(event: KeyboardEvent) {
+    if (pending) return;
+    if (event.key === '0') {
+      event.preventDefault();
+      resetView();
+      return;
+    }
+    const offsets: Record<string, [number, number]> = {
+      ArrowLeft: [30, 0],
+      ArrowRight: [-30, 0],
+      ArrowUp: [0, 30],
+      ArrowDown: [0, -30],
+    };
+    const offset = offsets[event.key];
+    if (!offset) return;
+    event.preventDefault();
+    pause();
+    view.x += offset[0];
+    view.y += offset[1];
+    render();
+  }
+  async function setOptions(next: { locale: 'zh-CN' | 'en'; theme: 'light' | 'dark' }) {
+    if (disposed || !compiled) return;
+    if (!['zh-CN', 'en'].includes(next.locale) || !['light', 'dark'].includes(next.theme))
+      fail('UNSUPPORTED', 'player', 'Unknown variant');
+    pause();
+    endDrag();
+    pending?.abort();
+    const controller = new AbortController();
+    pending = controller;
+    host.setAttribute('aria-busy', 'true');
+    status.textContent = next.locale === 'en' ? 'Loading…' : '正在加载…';
+    try {
+      const scene =
+        next.locale === compiled.manifest.locale
+          ? { ...compiled, manifest: { ...compiled.manifest, colorTheme: next.theme } }
+          : await (options.loadVariant?.(next, controller.signal) ??
+              Promise.reject(Error('No locale variant loader configured')));
+      if (disposed || pending !== controller) return;
+      assertResources(scene);
+      if (
+        scene.manifest.source.fontSha256 !== compiled.manifest.source.fontSha256 ||
+        JSON.stringify(scene.manifest.project) !== JSON.stringify(compiled.manifest.project) ||
+        scene.manifest.viewport.width !== compiled.manifest.viewport.width ||
+        scene.manifest.viewport.height !== compiled.manifest.viewport.height
+      )
+        fail('VARIANT', 'player', 'Variant project, viewport or font mismatch');
+      if (
+        scene.manifest.locale !== next.locale ||
+        (scene.manifest.colorTheme ?? 'light') !== next.theme
+      )
+        fail('VARIANT', 'player', 'Variant does not match requested options');
+      compiled = scene;
+      time = Math.min(time, scene.duration);
+      resetView();
+      status.textContent = '';
+    } catch (error) {
+      if (disposed || pending !== controller) return;
+      status.textContent = error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      if (!disposed && pending === controller) {
+        pending = undefined;
+        host.setAttribute('aria-busy', 'false');
+      }
+    }
+  }
   const toggle = () => (playing ? pause() : play());
   const scrub = () => seek(Number(range.value));
   button.addEventListener('click', toggle);
   range.addEventListener('input', scrub);
+  reset.addEventListener('click', resetView);
+  frame.addEventListener('pointerdown', down);
+  frame.addEventListener('pointermove', move);
+  frame.addEventListener('pointerup', up);
+  frame.addEventListener('pointercancel', up);
+  frame.addEventListener('lostpointercapture', up);
+  frame.addEventListener('wheel', wheel, { passive: false });
+  frame.addEventListener('keydown', key);
   render();
   return {
     seek,
     play,
     pause,
+    resetView,
+    setOptions,
     get time() {
       return time;
     },
     get playing() {
       return playing;
     },
+    get view() {
+      return { ...view };
+    },
+    get appearance() {
+      return compiled
+        ? { locale: compiled.manifest.locale, theme: compiled.manifest.colorTheme ?? 'light' }
+        : undefined;
+    },
     dispose() {
+      if (disposed) return;
+      endDrag();
       disposed = true;
       playing = false;
+      pending?.abort();
+      pending = undefined;
+      compiled = undefined;
+      options = {};
       cancelAnimationFrame(request);
       button.removeEventListener('click', toggle);
       range.removeEventListener('input', scrub);
+      reset.removeEventListener('click', resetView);
+      frame.removeEventListener('pointerdown', down);
+      frame.removeEventListener('pointermove', move);
+      frame.removeEventListener('pointerup', up);
+      frame.removeEventListener('pointercancel', up);
+      frame.removeEventListener('lostpointercapture', up);
+      frame.removeEventListener('wheel', wheel);
+      frame.removeEventListener('keydown', key);
+      frame.replaceChildren();
       host.replaceChildren();
+      host.removeAttribute('aria-busy');
     },
   };
 }
