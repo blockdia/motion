@@ -78,6 +78,59 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
     assert.equal(await page.evaluate(() => window.player.view.zoom), 1);
     await page.getByRole('button', { name: '恢复视角', exact: true }).press('Enter');
     assert.deepEqual(await page.evaluate(() => window.player.view), { x: 0, y: 0, zoom: 1 });
+    const workspaceDragTime = zh.tracks
+      .filter((t) => t.kind === 'node')
+      .map((t) => (t.start + t.end) / 2)
+      .find((t) => {
+        const snapshot = evaluate(t, zh);
+        const w = zh.manifest.layout.workspace,
+          b = zh.manifest.layout.toolbox;
+        return (
+          snapshot.nodes.some((n) => n.dragging) &&
+          snapshot.cursor.x >= b.x + b.width &&
+          snapshot.cursor.x <= w.x + w.width &&
+          snapshot.cursor.y >= w.y &&
+          snapshot.cursor.y <= w.y + w.height
+        );
+      });
+    assert.ok(workspaceDragTime !== undefined);
+    await page.evaluate((time) => window.player.seek(time), workspaceDragTime);
+    const workspaceCursor = await page.locator('[data-cursor-button]').boundingBox();
+    const workspaceGrip = await grip();
+    await page.mouse.move(dragFrame.x + 600, dragFrame.y + 350);
+    await page.mouse.down();
+    await page.mouse.move(dragFrame.x + 650, dragFrame.y + 380);
+    await page.mouse.up();
+    const pannedCursor = await page.locator('[data-cursor-button]').boundingBox();
+    assert.ok(Math.abs(pannedCursor.x - workspaceCursor.x - 50) < 1);
+    assert.ok(Math.abs(pannedCursor.y - workspaceCursor.y - 30) < 1);
+    await page.keyboard.down('Control');
+    await page.mouse.wheel(0, -100);
+    await page.keyboard.up('Control');
+    await page.waitForFunction(() => window.player.view.zoom > 1);
+    const workspaceZoomGrip = await grip();
+    assert.ok(Math.abs(workspaceZoomGrip.x - workspaceGrip.x) < 0.001);
+    assert.ok(Math.abs(workspaceZoomGrip.y - workspaceGrip.y) < 0.001);
+    const cursorPosition = await page.evaluate(() => {
+      const matrix = document.querySelector('[data-cursor-button]').getScreenCTM();
+      const svg = document.querySelector('.motion-frame > svg');
+      const point = new DOMPoint(matrix.e, matrix.f).matrixTransform(svg.getScreenCTM().inverse());
+      return { x: point.x, y: point.y, view: window.player.view };
+    });
+    const tutorialCursor = evaluate(workspaceDragTime, zh).cursor;
+    const w = zh.manifest.layout.workspace;
+    assert.ok(
+      Math.abs(
+        cursorPosition.x -
+          (w.x + cursorPosition.view.x + (tutorialCursor.x - w.x) * cursorPosition.view.zoom),
+      ) < 0.001,
+    );
+    assert.ok(
+      Math.abs(
+        cursorPosition.y -
+          (w.y + cursorPosition.view.y + (tutorialCursor.y - w.y) * cursorPosition.view.zoom),
+      ) < 0.001,
+    );
     const input = zh.tracks.find((t) => t.kind === 'input' && t.frames.some((f) => f.candidates));
     assert.ok(input);
     const time = input.start + input.frames.find((f) => f.candidates).offset;

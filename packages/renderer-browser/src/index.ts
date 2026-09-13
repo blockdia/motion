@@ -79,6 +79,15 @@ export function frameSvg(
   if (!catalog) fail('TARGET', 'render', `Missing target catalog ${s.targetId}`);
   const category = catalog.categories.find((c) => c.key === s.toolbox.category);
   const box = m.layout.toolbox;
+  // Resolve the region from tutorial coordinates so seeking stays independent of viewer history.
+  const cursorInWorkspace =
+    s.cursor.x >= box.x + box.width &&
+    s.cursor.x <= w.x + w.width &&
+    s.cursor.y >= w.y &&
+    s.cursor.y <= w.y + w.height;
+  const dragTransform = cursorInWorkspace
+    ? transform
+    : `translate(${s.cursor.x} ${s.cursor.y}) scale(${view.zoom}) translate(${-s.cursor.x} ${-s.cursor.y})`;
   const workspace = viewed(
     `<g>${s.nodes
       .filter((n) => !n.dragging)
@@ -184,21 +193,14 @@ export function frameSvg(
     )}</g>` +
     `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="#ccc"/>` +
     `<g clip-path="url(#editor)">` +
-    `<g transform="translate(${s.cursor.x} ${s.cursor.y}) scale(${view.zoom}) translate(${-s.cursor.x} ${-s.cursor.y})">${s.nodes
+    `<g transform="${dragTransform}">${s.nodes
       .filter((n) => n.dragging)
       .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`, true))
       .join('')}</g>` +
     '</g>' +
     (s.input ? viewed(inputSvg(s.input)) : '') +
     viewed(uiPaint(overlays, m)) +
-    ((content: string) =>
-      !s.nodes.some((node) => node.dragging) &&
-      s.cursor.x >= box.x + box.width &&
-      s.cursor.x <= w.x + w.width &&
-      s.cursor.y >= w.y &&
-      s.cursor.y <= w.y + w.height
-        ? viewed(content, false)
-        : content)(
+    ((content: string) => (cursorInWorkspace ? viewed(content, false) : content))(
       (s.cursor.pressed
         ? `<circle cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="${s.cursor.button === 'right' ? '#4c97ff' : '#ff4c4c'}" opacity=".18"/>`
         : '') +
