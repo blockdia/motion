@@ -1,0 +1,80 @@
+import { defineTutorial, defaultProject } from '@blockdia-motion/authoring';
+
+// Keys come from `motion catalog`, not opcode aliases.
+const hatEntry = 'events.event_whenflagclicked.4758c63ad4a847ba';
+const moveEntry = 'motion.motion_movesteps.a5812bf398461387';
+export default defineTutorial({
+  schemaVersion: 1,
+  adapter: 'turbowarp',
+  project: defaultProject(),
+  initialTarget: 'sprite',
+  viewport: { width: 1280, height: 720 },
+  defaults: { theme: 'light', locale: 'zh-CN' },
+  build(s) {
+    const main = s.workspace.slot('main');
+    const secondary = s.workspace.slot('secondary');
+    const rotation = s.defineBlocks([
+      { id: 'rotation', opcode: 'motion_setrotationstyle', fields: { STYLE: 'all around' } },
+    ]);
+    return s.sequence(
+      // 1. Direct edits: no cursor, animation or elapsed time.
+      s.direct.selectTarget('stage'),
+      s.direct.selectTarget('sprite'),
+      s.direct.selectCategory('motion'),
+      s.direct.reveal(moveEntry),
+      s.direct.create(rotation, main),
+      s.direct.create([{ id: 'scratch', opcode: 'looks_say' }], secondary),
+      s.direct.move('scratch', main),
+      s.direct.connect('scratch', { kind: 'connection', id: 'rotation', name: 'next' }),
+      s.direct.setField(s.ref('rotation').field('STYLE'), 'left-right'),
+      s.wait(0.6),
+      s.direct.delete('scratch'),
+      s.direct.delete('rotation'),
+      // 2. Toolbox navigation and actual dragging/connection preview.
+      s.toolbox.selectCategory('events'),
+      s.toolbox.reveal(hatEntry),
+      s.dragFromToolbox(hatEntry, { id: 'hat', to: main }),
+      s.dragFromToolbox(moveEntry, { id: 'move', to: s.ref('hat').connection('next') }),
+      s.wait(0.5),
+      s.move('move', secondary),
+      s.connect('move', { kind: 'connection', id: 'hat', name: 'next' }),
+      s.wait(0.5),
+      s.split('move', secondary),
+      s.delete('move'), // Default: drag the entire subtree into the toolbox.
+      s.delete('hat', { via: 'contextMenu' }),
+      // 3. Atomic creation/paste remain useful explicit conveniences.
+      s.create(rotation, { to: main, duration: 0.2 }),
+      s.paste(
+        [
+          {
+            id: 'say',
+            opcode: 'looks_say',
+            inputs: {
+              MESSAGE: { shadow: { id: 'message', opcode: 'text', fields: { TEXT: '' } } },
+            },
+          },
+        ],
+        { to: secondary, duration: 0.2 },
+      ),
+      s.choose(s.ref('rotation').field('STYLE'), 'left-right'),
+      s.setField(s.ref('message').field('TEXT'), '开始', { duration: 0.2 }),
+      s.type(s.ref('message').field('TEXT'), '你好，欢迎学习积木编程！Hello 123'),
+      s.parallel(
+        s.highlight('rotation', 0.8),
+        s.annotate('say', '文本 API 自动决定拼音和候选词', 0.8),
+      ),
+      s.contextMenu('say', 0.8),
+      s.connect('say', { kind: 'connection', id: 'rotation', name: 'next' }),
+      s.wait(0.6),
+      s.delete('rotation', { via: 'contextMenu' }), // Native healing preserves `say`.
+      s.wait(0.6),
+      // 4. Select by clicking the visible target tile; selection changes on release.
+      s.selectTarget('stage'),
+      s.wait(0.5),
+      s.selectTarget('sprite'),
+      s.wait(0.6),
+      s.delete('say'),
+      s.wait(0.5),
+    );
+  },
+});

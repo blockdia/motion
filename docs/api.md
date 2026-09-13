@@ -32,3 +32,46 @@ scene.direct.delete('block'); // 立即移除整段，无动画
 高层连接在接近目标时展示原生 Blockly 插入阴影，松手时原子替换为连接后的积木。底层 connect 直接拼接，不展示阴影。
 
 高层 selectTarget 自动滚动角色列表、移动鼠标并点击目标，松手后才切换工作区和工具箱；选择当前 target 不产生动作。direct.selectTarget 立即切换。浏览器播放、跳转和视频导出共享相同的布局和轨道。
+
+## 完整示例
+
+[examples/all-api/tutorial.ts](../examples/all-api/tutorial.ts) 覆盖全部 SceneBuilder 操作、8 个 direct 方法，以及 ref、workspace.slot、defineBlocks 辅助方法。示例使用独立 ID，展示两种删除的结构差异，并包含自动中文输入、并行标注、原生菜单和 target 点击。
+
+```sh
+pnpm example:all-api
+pnpm preview
+# 打开 /apps/playground/index.html?scene=/artifacts/all-api/scene.json
+```
+
+编译、检查、目录查询和视频导出：
+
+```sh
+pnpm motion check examples/all-api/tutorial.ts
+pnpm motion catalog examples/all-api/tutorial.ts artifacts/all-api/catalog.json
+pnpm motion compile examples/all-api/tutorial.ts artifacts/all-api/scene.json
+pnpm motion export artifacts/all-api/scene.json artifacts/all-api/tutorial.mp4 30
+```
+
+运行时 API（实际调用可参考 playground 和集成测试）：
+
+```ts
+const adapter = await createAdapter({ project: tutorial.project });
+let scene;
+try {
+  scene = await compile(tutorial, adapter);
+} finally {
+  await adapter.dispose();
+}
+assertResources(scene);
+const snapshot = evaluate(2.5, scene); // 无副作用，支持任意顺序采样
+const svg = frameSvg(2.5, scene);
+const player = mountPlayer(document.querySelector('#player')!, scene);
+player.seek(2.5);
+player.play();
+player.pause();
+console.log(player.time, player.playing);
+player.dispose(); // 切换场景或卸载前释放 RAF 与监听器
+// Node: rasterFrame(scene, 2.5, fontPath)、exportVideo(scene, {output, font: fontPath, fps: 30})
+```
+
+`createAdapter` 来自 asset-builder，`compile` 来自 authoring，`assertResources/evaluate` 来自 core，`frameSvg/mountPlayer` 来自 renderer-browser，`rasterFrame/exportVideo` 来自 renderer-video。包名前缀均为 `@blockdia-motion/`。渲染前需加载 manifest 指定字体；playground 已校验字体摘要。

@@ -18,7 +18,7 @@ pnpm preview
 
 需要 Node.js ≥22.18、已安装构建依赖的相邻 `scratch-blocks`、`scratch-gui` checkout、Chrome、FFmpeg、Python 3 和 Java。其他路径/系统配置见 [P0 复现说明](docs/p0.md)。
 
-预览位于 [本地播放器](http://127.0.0.1:4173/apps/playground/index.html)，默认展示 P2 常规编辑，可切换基础编辑和多角色目录示例。先执行下方 P2 编译命令，无需导出视频即可预览；页面会提示尚未准备的示例。`?scene=/路径/scene.json` 可加载自定义编译产物，切换教程会停止旧播放器并回到新教程起点。
+预览位于 [本地播放器](http://127.0.0.1:4173/apps/playground/index.html)，默认展示全部 API 示例，可切换 P2 常规编辑、基础编辑和多角色目录示例。先执行 `pnpm example:all-api` 或下方 P2 编译命令，无需导出视频即可预览；页面会提示尚未准备的示例。`?scene=/路径/scene.json` 可加载自定义编译产物，切换教程会停止旧播放器并回到新教程起点。
 
 ```sh
 pnpm build
@@ -29,6 +29,7 @@ pnpm motion compile examples/basic-editing/tutorial.ts artifacts/p1b/scene.json
 pnpm motion export artifacts/p1b/scene.json artifacts/p1b/tutorial.mp4 30
 ```
 
+- [底层与高层 API](docs/api.md) / [全部 API 示例](examples/all-api/tutorial.ts)
 - [TypeScript 示例](examples/basic-editing/tutorial.ts) / [等价 JSON](examples/basic-editing/tutorial.json)
 - [P1c 目录提取、项目上下文与验收](docs/p1c.md)
 - [P2 常规编辑、示例与验收](docs/p2.md)

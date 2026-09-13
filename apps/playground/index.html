@@ -74,6 +74,7 @@
   <header class="toolbar">
     <label for="tutorial">教程示例</label>
     <select id="tutorial">
+      <option value="/artifacts/all-api/scene.json">全部 API · 底层与交互动画</option>
       <option value="/artifacts/p2/scene.json">P2 · 常规代码编辑</option>
       <option value="/artifacts/p1b/scene.json">基础编辑</option>
       <option value="/artifacts/p1c/scene.json">多角色与完整工具箱</option>
@@ -91,6 +92,11 @@
     const status = document.querySelector('#status');
     const errorBox = document.querySelector('#error');
     const examples = {
+      '/artifacts/all-api/scene.json': {
+        description: '底层编辑、工具箱拖动、原生连接阴影、右键菜单、两种删除、自动输入与角色点击。',
+        source: 'all-api',
+        output: 'all-api',
+      },
       '/artifacts/p2/scene.json': {
         description: '容器连接、拆分与删除、长文本输入、模拟输入法、字段菜单和高亮标注。',
         source: 'structural-editing',
