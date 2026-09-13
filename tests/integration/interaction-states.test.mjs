@@ -1,12 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
 import { createAdapter } from '../../packages/asset-builder/dist/index.js';
 import { compile, defineTutorial, defaultProject } from '../../packages/authoring/dist/index.js';
 import { evaluate } from '../../packages/core/dist/index.js';
-import { frameSvg } from '../../packages/renderer-browser/dist/index.js';
-import { rasterFrame } from '../../packages/renderer-video/dist/index.js';
-import { font } from '../../scripts/server.mjs';
 
 test('native boolean replacement, dropdown open state, pointer hover and flyout decay', async () => {
   const project = defaultProject();
@@ -108,16 +104,6 @@ test('native boolean replacement, dropdown open state, pointer hover and flyout 
     );
     const click = scene.tracks.find((t) => t.step === scroll.step + ':click');
     assert.ok(click.end <= scroll.start);
-    const out = 'artifacts/interaction-audit';
-    await mkdir(out, { recursive: true });
-    for (const [name, t] of Object.entries({
-      boolean: (preview.start + preview.end) / 2,
-      dropdown: (opened.start + opened.end) / 2,
-    })) {
-      const svg = frameSvg(t, scene);
-      assert.doesNotMatch(svg, /url\(#blocklyReplacementGlowFilter/);
-      await writeFile(`${out}/${name}.png`, rasterFrame(scene, t, font));
-    }
   } finally {
     await adapter.dispose();
   }

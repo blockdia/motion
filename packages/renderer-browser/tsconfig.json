@@ -8,6 +8,15 @@
   "references": [
     {
       "path": "../core"
+    },
+    {
+      "path": "../authoring"
+    },
+    {
+      "path": "../asset-builder"
+    },
+    {
+      "path": "../adapter-turbowarp"
     }
   ]
 }

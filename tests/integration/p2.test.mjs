@@ -1,16 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { chromium } from 'playwright-core';
 import { createAdapter } from '../../packages/asset-builder/dist/index.js';
 import { compile } from '../../packages/authoring/dist/index.js';
 import { evaluate } from '../../packages/core/dist/index.js';
-import { frameSvg } from '../../packages/renderer-browser/dist/index.js';
-import { rasterFrame, exportVideo } from '../../packages/renderer-video/dist/index.js';
-import { serve, root, font } from '../../scripts/server.mjs';
 import tutorial from '../../examples/structural-editing/tutorial.ts';
 
-test('P2 real Blockly structural editing, shadow restoration, overlays and deterministic export', async () => {
+test('P2 real Blockly structural editing, shadow restoration and deterministic timeline states', async () => {
   const adapter = await createAdapter({ project: tutorial.project });
   let scene;
   try {
@@ -130,101 +125,5 @@ test('P2 real Blockly structural editing, shadow restoration, overlays and deter
       Object.keys(scene.manifest.resources[n.asset].anchors),
     );
     assert.equal(new Set(ids).size, ids.length, `Duplicate visible block at ${times[i]}`);
-  }
-  const out = root + '/artifacts/p2';
-  await mkdir(out, { recursive: true });
-  await writeFile(out + '/scene.json', JSON.stringify(scene));
-  const server = await serve();
-  let browser;
-  try {
-    browser = await chromium.launch({
-      executablePath:
-        process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      headless: true,
-    });
-    const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-    await page.goto(server.url);
-    const keyTimes = scene.tracks
-      .filter((t) => t.kind === 'overlay' || t.kind === 'input' || t.kind === 'preview')
-      .map((t) => (t.start + t.end) / 2);
-    const connected = scene.events.find((e) =>
-      e.nodes?.some((n) => {
-        const a = scene.manifest.resources[n.asset].anchors;
-        return a.repeat && a.reporter;
-      }),
-    );
-    keyTimes.push(connected.time + 0.3);
-    const longInput = scene.tracks.find((t) => t.kind === 'input');
-    const composing = longInput.frames.find((f) =>
-      scene.manifest.resources[f.asset].input.text.endsWith('ji mu'),
-    );
-    assert.ok(composing);
-    keyTimes.push(longInput.start + composing.offset);
-    for (const [i, t] of keyTimes.entries()) {
-      const svg = frameSvg(t, scene);
-      await page.setContent(
-        `<style>@font-face{font-family:'Motion Sans';src:url('${server.url}/font.ttf')}body{margin:0}</style>${svg}`,
-      );
-      await page.evaluate(() => document.fonts.ready);
-      await page.screenshot({ path: `${out}/browser-${i}.png` });
-      await writeFile(`${out}/video-${i}.png`, rasterFrame(scene, t, font));
-      if (t === longInput.start + composing.offset) {
-        const alignment = await page.evaluate(() => {
-          const input = document.querySelector('[data-input-text] text');
-          const prefix = input.textContent.indexOf('ji mu');
-          const pos = input.getStartPositionOfChar(prefix);
-          const expected = new DOMPoint(pos.x, pos.y).matrixTransform(input.getScreenCTM());
-          const candidate = document.querySelector('[data-ime-candidate="0"]');
-          const actual = new DOMPoint(
-            candidate.x.baseVal[0].value,
-            candidate.y.baseVal[0].value,
-          ).matrixTransform(candidate.getScreenCTM());
-          return { expected: expected.x, actual: actual.x };
-        });
-        assert.ok(Math.abs(alignment.actual - alignment.expected) < 1, JSON.stringify(alignment));
-      }
-      const difference = await page.evaluate(async (i) => {
-        async function pixels(prefix) {
-          const image = new Image();
-          image.src = `/artifacts/p2/${prefix}-${i}.png`;
-          await image.decode();
-          const canvas = document.createElement('canvas');
-          canvas.width = image.width;
-          canvas.height = image.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(image, 0, 0);
-          return ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-        }
-        const a = await pixels('browser'),
-          b = await pixels('video');
-        let sum = 0,
-          changed = 0;
-        for (let k = 0; k < a.length; k += 4) {
-          let max = 0;
-          for (let c = 0; c < 3; c++) {
-            const d = Math.abs(a[k + c] - b[k + c]);
-            sum += d;
-            max = Math.max(max, d);
-          }
-          if (max > 32) changed++;
-        }
-        return { mean: sum / ((a.length / 4) * 3), changed: changed / (a.length / 4) };
-      }, i);
-      assert.ok(
-        difference.mean < 3 && difference.changed < 0.025,
-        JSON.stringify({ i, difference }),
-      );
-      assert.equal(
-        await page.locator('[data-overlay]').count(),
-        evaluate(t, scene).overlays.length,
-      );
-    }
-  } finally {
-    await browser?.close();
-    await server.close();
-  }
-  if (process.env.P2_VIDEO === '1') {
-    const report = await exportVideo(scene, { output: out + '/tutorial.mp4', font, fps: 30 });
-    await writeFile(out + '/report.json', JSON.stringify(report, null, 2));
   }
 });

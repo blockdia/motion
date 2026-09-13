@@ -69,21 +69,33 @@ importers:
 
   packages/renderer-browser:
     dependencies:
+      '@blockdia-motion/adapter-turbowarp':
+        specifier: workspace:*
+        version: link:../adapter-turbowarp
+      '@blockdia-motion/asset-builder':
+        specifier: workspace:*
+        version: link:../asset-builder
+      '@blockdia-motion/authoring':
+        specifier: workspace:*
+        version: link:../authoring
       '@blockdia-motion/core':
         specifier: workspace:*
         version: link:../core
 
   packages/renderer-video:
     dependencies:
+      '@blockdia-motion/asset-builder':
+        specifier: workspace:*
+        version: link:../asset-builder
+      '@blockdia-motion/authoring':
+        specifier: workspace:*
+        version: link:../authoring
       '@blockdia-motion/core':
         specifier: workspace:*
         version: link:../core
       '@blockdia-motion/renderer-browser':
         specifier: workspace:*
         version: link:../renderer-browser
-      '@resvg/resvg-js':
-        specifier: 2.6.2
-        version: 2.6.2
 
 packages:
 

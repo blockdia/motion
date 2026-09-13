@@ -1,365 +1,147 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
-import { chromium } from 'playwright-core';
-import { serve, font } from '../../scripts/server.mjs';
-import { rasterFrame } from '../../packages/renderer-video/dist/index.js';
-import { evaluate, assertResources } from '../../packages/core/dist/index.js';
-import { frameSvg } from '../../packages/renderer-browser/dist/index.js';
-
-test('P3 real variants, responsive player, view transforms, races and disposal', async () => {
-  await import('../../scripts/p3-reference.mjs');
-  await import('../../scripts/p3.mjs');
-  const zh = JSON.parse(await readFile('artifacts/p3/scene.zh-CN.light.json'));
-  const en = JSON.parse(await readFile('artifacts/p3/scene.en.light.json'));
-  const dark = JSON.parse(await readFile('artifacts/p3/scene.zh-CN.dark.json'));
-  const enDark = JSON.parse(await readFile('artifacts/p3/scene.en.dark.json'));
-  assert.notDeepEqual(zh.manifest.appearance, dark.manifest.appearance);
-  assert.notEqual(zh.manifest.chrome, dark.manifest.chrome);
-  assert.throws(
-    () => assertResources({ ...zh, manifest: { ...zh.manifest, colorTheme: 'dark' } }),
-    /SCHEMA/,
-  );
-  assert.equal(zh.duration, en.duration);
-  assert.equal(en.manifest.targets.sprite.categories[0].label, 'Motion');
-  assert.notDeepEqual(zh.manifest.resources, en.manifest.resources);
-  const server = await serve();
-  let browser;
+import { openBrowser } from '../../packages/asset-builder/dist/index.js';
+import { bundleTutorial } from '../../packages/authoring/dist/bundle.js';
+import tutorial from '../../examples/basic-editing/tutorial.ts';
+test('client font/theme/language variants, two isolated players, cancellation and failure recovery', async () => {
+  const zh = await bundleTutorial(tutorial),
+    en = await bundleTutorial({ ...tutorial, defaults: { theme: 'light', locale: 'en' } });
+  const h = await openBrowser({ font: '/System/Library/Fonts/Supplemental/Arial Unicode.ttf' });
   try {
-    browser = await chromium.launch({
-      executablePath:
-        process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-      headless: true,
-    });
-    const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
-    const errors = [];
-    page.on('pageerror', (error) => errors.push(error.message));
-    await page.goto(server.url + '/apps/playground/index.html');
-    await page.waitForFunction(() => window.ready);
-    const draggingTime = zh.tracks
-      .filter((t) => t.kind === 'node')
-      .map((t) => t.start + 0.001)
-      .find((t) => {
-        const snapshot = evaluate(t, zh);
-        return snapshot.nodes.some((n) => n.dragging) && snapshot.cursor.x < 311;
-      });
-    assert.ok(draggingTime !== undefined);
-    await page.evaluate((time) => window.player.seek(time), draggingTime);
-    const beforeCursor = await page.locator('[data-cursor-button]').boundingBox();
-    const grip = () =>
-      page.evaluate(() => {
-        const block = document.querySelector('[data-dragged-stack]').getScreenCTM();
-        const cursor = document.querySelector('[data-cursor-button]').getScreenCTM();
-        return {
-          x: (block.e - cursor.e) / window.player.view.zoom,
-          y: (block.f - cursor.f) / window.player.view.zoom,
-        };
-      });
-    const beforeGrip = await grip();
-    const dragFrame = await page.locator('.motion-frame').boundingBox();
-    await page.mouse.move(dragFrame.x + 600, dragFrame.y + 350);
-    await page.mouse.down();
-    await page.mouse.move(dragFrame.x + 650, dragFrame.y + 380);
-    await page.mouse.up();
-    const afterCursor = await page.locator('[data-cursor-button]').boundingBox();
-    assert.ok(Math.abs(afterCursor.x - beforeCursor.x) < 1);
-    assert.ok(Math.abs(afterCursor.y - beforeCursor.y) < 1);
-    await page.keyboard.down('Control');
-    await page.mouse.wheel(0, -100);
-    await page.keyboard.up('Control');
-    await page.waitForFunction(() => window.player.view.zoom > 1);
-    const afterGrip = await grip();
-    assert.ok(Math.abs(beforeGrip.x - afterGrip.x) < 0.001);
-    assert.ok(Math.abs(beforeGrip.y - afterGrip.y) < 0.001);
-    assert.equal(await page.evaluate(() => window.player.time), draggingTime);
-    await page.evaluate(() => window.player.resetView());
-    await page.mouse.wheel(20, 40);
-    await page.waitForFunction(() => window.player.view.y === -40);
-    assert.deepEqual(await page.evaluate(() => window.player.view), { x: -20, y: -40, zoom: 1 });
-    await page.keyboard.down('Shift');
-    await page.mouse.wheel(0, 30);
-    await page.keyboard.up('Shift');
-    await page.waitForFunction(() => window.player.view.x === -50);
-    assert.deepEqual(await page.evaluate(() => window.player.view), { x: -50, y: -40, zoom: 1 });
-    await page.getByRole('button', { name: '放大', exact: true }).click();
-    assert.equal(await page.evaluate(() => window.player.view.zoom), 1.2);
-    await page.getByRole('button', { name: '缩小', exact: true }).click();
-    assert.equal(await page.evaluate(() => window.player.view.zoom), 1);
-    await page.getByRole('button', { name: '恢复视角', exact: true }).press('Enter');
-    assert.deepEqual(await page.evaluate(() => window.player.view), { x: 0, y: 0, zoom: 1 });
-    const workspaceDragTime = zh.tracks
-      .filter((t) => t.kind === 'node')
-      .map((t) => (t.start + t.end) / 2)
-      .find((t) => {
-        const snapshot = evaluate(t, zh);
-        const w = zh.manifest.layout.workspace,
-          b = zh.manifest.layout.toolbox;
-        return (
-          snapshot.nodes.some((n) => n.dragging) &&
-          snapshot.cursor.x >= b.x + b.width &&
-          snapshot.cursor.x <= w.x + w.width &&
-          snapshot.cursor.y >= w.y &&
-          snapshot.cursor.y <= w.y + w.height
-        );
-      });
-    assert.ok(workspaceDragTime !== undefined);
-    await page.evaluate((time) => window.player.seek(time), workspaceDragTime);
-    const workspaceCursor = await page.locator('[data-cursor-button]').boundingBox();
-    const workspaceGrip = await grip();
-    await page.mouse.move(dragFrame.x + 600, dragFrame.y + 350);
-    await page.mouse.down();
-    await page.mouse.move(dragFrame.x + 650, dragFrame.y + 380);
-    await page.mouse.up();
-    const pannedCursor = await page.locator('[data-cursor-button]').boundingBox();
-    assert.ok(Math.abs(pannedCursor.x - workspaceCursor.x - 50) < 1);
-    assert.ok(Math.abs(pannedCursor.y - workspaceCursor.y - 30) < 1);
-    await page.keyboard.down('Control');
-    await page.mouse.wheel(0, -100);
-    await page.keyboard.up('Control');
-    await page.waitForFunction(() => window.player.view.zoom > 1);
-    const workspaceZoomGrip = await grip();
-    assert.ok(Math.abs(workspaceZoomGrip.x - workspaceGrip.x) < 0.001);
-    assert.ok(Math.abs(workspaceZoomGrip.y - workspaceGrip.y) < 0.001);
-    const cursorPosition = await page.evaluate(() => {
-      const matrix = document.querySelector('[data-cursor-button]').getScreenCTM();
-      const svg = document.querySelector('.motion-frame > svg');
-      const point = new DOMPoint(matrix.e, matrix.f).matrixTransform(svg.getScreenCTM().inverse());
-      return { x: point.x, y: point.y, view: window.player.view };
-    });
-    const tutorialCursor = evaluate(workspaceDragTime, zh).cursor;
-    const w = zh.manifest.layout.workspace;
-    assert.ok(
-      Math.abs(
-        cursorPosition.x -
-          (w.x + cursorPosition.view.x + (tutorialCursor.x - w.x) * cursorPosition.view.zoom),
-      ) < 0.001,
-    );
-    assert.ok(
-      Math.abs(
-        cursorPosition.y -
-          (w.y + cursorPosition.view.y + (tutorialCursor.y - w.y) * cursorPosition.view.zoom),
-      ) < 0.001,
-    );
-    const input = zh.tracks.find((t) => t.kind === 'input' && t.frames.some((f) => f.candidates));
-    assert.ok(input);
-    const time = input.start + input.frames.find((f) => f.candidates).offset;
-    await page.evaluate((time) => window.player.seek(time), time);
-    await page.evaluate(() => window.player.play());
-    const initialFrame = await page.locator('.motion-frame').boundingBox();
-    await page.mouse.move(initialFrame.x + 600, initialFrame.y + 350);
-    await page.mouse.down();
-    await page.mouse.move(initialFrame.x + 620, initialFrame.y + 360);
-    await page.mouse.up();
-    assert.equal(await page.evaluate(() => window.player.playing), false);
-    await page.evaluate((time) => window.player.seek(time), time);
-    const original = await page.locator('[data-input-text]').boundingBox();
-    const frame = await page.locator('.motion-frame').boundingBox();
-    await page.mouse.move(frame.x + 600, frame.y + 350);
-    await page.mouse.down();
-    await page.mouse.move(frame.x + 650, frame.y + 380);
-    await page.mouse.up();
-    const shifted = await page.locator('[data-input-text]').boundingBox();
-    assert.ok(Math.abs(shifted.x - original.x - 50) < 1);
-    assert.ok(Math.abs(shifted.y - original.y - 30) < 1);
-    await page.keyboard.down('Control');
-    await page.mouse.wheel(0, -100);
-    await page.keyboard.up('Control');
-    await page.waitForFunction(() => window.player.view.zoom > 1);
-    assert.equal(await page.evaluate(() => window.player.playing), false);
-    assert.equal(await page.evaluate(() => window.player.time), time);
-    assert.equal(
-      await page.evaluate(() => {
-        const grid = document.querySelector('pattern[id$="workspace-dots"]');
-        const workspace = document.querySelector('[data-workspace-view]');
-        return grid.getAttribute('patternTransform') === workspace.getAttribute('transform');
-      }),
-      true,
-    );
-    await page.screenshot({ path: 'artifacts/p3/interaction.png' });
-    await page.evaluate(() => window.player.play());
-    assert.deepEqual(await page.evaluate(() => window.player.view), { x: 0, y: 0, zoom: 1 });
-    await page.evaluate((time) => window.player.seek(time), time);
-    await page.selectOption('#locale', 'en');
-    await page.waitForFunction(() => window.player.appearance.locale === 'en');
-    assert.equal(await page.evaluate(() => window.player.time), time);
-    await page.selectOption('#theme', 'dark');
-    await page.waitForFunction(() => window.player.appearance.theme === 'dark');
-    assert.equal(await page.evaluate(() => window.player.time), time);
-    assert.equal(await page.locator('#player').getAttribute('aria-busy'), 'false');
-    for (const width of [1280, 800, 375]) {
-      await page.setViewportSize({ width, height: 1000 });
-      await page.screenshot({ path: `artifacts/p3/player-${width}.png` });
-      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-      const box = await page.locator('.motion-frame').boundingBox();
-      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
-      await page.keyboard.down('Control');
-      await page.mouse.wheel(0, -100);
-      await page.keyboard.up('Control');
-      await page.waitForFunction(() => window.player.view.zoom > 1);
-      await page.evaluate(() => window.player.resetView());
-    }
-    // Late results, cancellation, failed loads, and a retained disposed handle.
-    const lifecycle = await page.evaluate(
-      async ({ zh, en, dark }) => {
-        window.player.dispose();
-        const { mountPlayer } = await import('/packages/renderer-browser/dist/index.js');
-        const host = document.querySelector('#player');
-        const original = JSON.stringify(zh);
-        const jobs = [];
-        const player = mountPlayer(host, zh, {
-          loadVariant: (_next, signal) =>
-            new Promise((resolve, reject) => jobs.push({ resolve, reject, signal })),
-        });
-        player.seek(2);
-        const first = player.setOptions({ locale: 'en', theme: 'light' });
-        const second = player.setOptions({ locale: 'zh-CN', theme: 'dark' });
-        jobs[1].resolve(dark);
-        await second;
-        jobs[0].resolve(en);
-        await first;
-        const latestWins =
-          player.appearance.locale === 'zh-CN' &&
-          player.appearance.theme === 'dark' &&
-          jobs[0].signal.aborted;
-        const failed = player.setOptions({ locale: 'en', theme: 'light' });
-        jobs[2].reject(Error('test load failure'));
-        await failed.catch(() => {});
-        const preserved =
-          player.time === 2 &&
-          player.appearance.theme === 'dark' &&
-          host.getAttribute('aria-busy') === 'false';
-        const late = player.setOptions({ locale: 'en', theme: 'light' });
-        player.dispose();
-        jobs[3].resolve(en);
-        await late;
-        player.play();
-        player.pause();
-        player.seek(0);
-        player.resetView();
-        player.dispose();
-        return {
-          latestWins,
-          preserved,
-          empty: host.children.length === 0,
-          released: !player.appearance,
-          unchanged: JSON.stringify(zh) === original,
-          aborted: jobs[3].signal.aborted,
-        };
+    await h.page.goto(h.runtimeUrl + 'player.html');
+    await h.page.evaluate(
+      async ({ zh, en }) => {
+        window.zh = zh;
+        window.en = en;
+        const { mountPlayer } = await import('./modules/renderer-browser/index.js');
+        window.mount = mountPlayer;
+        window.player = await window.mountTutorial(zh, { loadVariant: async () => en });
       },
-      { zh, en, dark },
+      { zh, en },
     );
-    assert.deepEqual(lifecycle, {
-      latestWins: true,
-      preserved: true,
-      empty: true,
-      released: true,
-      unchanged: true,
-      aborted: true,
-    });
-    // Both render backends use the same prepared locale geometry and theme.
-    await page.setViewportSize({ width: 1280, height: 720 });
+    await h.page.evaluate(() => window.player.seek(1));
     for (const locale of ['zh-CN', 'en'])
       for (const theme of ['light', 'dark']) {
-        const scene =
-          locale === 'en' ? (theme === 'dark' ? enDark : en) : theme === 'dark' ? dark : zh;
-        const name = `${locale}-${theme}`;
-        const reference = JSON.parse(await readFile(`artifacts/p3/reference-${theme}.json`));
-        const svg = frameSvg(time, scene);
-        await page.setContent(
-          `<style>@font-face{font-family:'Motion Sans';src:url('${server.url}/font.ttf')}body{margin:0}</style>${svg}`,
-        );
-        await page.evaluate(() => document.fonts.ready);
-        const paints = await page.evaluate(() => {
-          const fill = (selector) => getComputedStyle(document.querySelector(selector)).fill;
-          return {
-            menu: fill('[data-surface="menu"]'),
-            feedbackBackground: fill('[data-shell-region="feedback"] rect'),
-            feedbackText: fill('[data-shell-region="feedback"] text'),
-            workspace: fill('[data-surface="workspace"]'),
-            flyout: fill('[data-surface="flyout"]'),
-            flyoutOpacity: getComputedStyle(document.querySelector('[data-surface="flyout"]'))
-              .fillOpacity,
-            category: fill('[data-surface="category"]'),
-            input: fill('[data-shell-region="search"] rect'),
-          };
+        await h.page.evaluate(({ locale, theme }) => window.player.setOptions({ locale, theme }), {
+          locale,
+          theme,
         });
-        assert.deepEqual(paints, reference, `${locale}/${theme}: differs from the real GUI`);
-        assert.equal(
-          await page.locator('[data-surface="stage"]').evaluate((el) => getComputedStyle(el).fill),
-          'rgb(255, 255, 255)',
+        assert.equal(await h.page.evaluate(() => window.player.time), 1);
+        assert.equal(await h.page.locator('[data-motion-preparation]').count(), 0);
+        assert.equal(await h.page.evaluate(() => window.player.appearance.theme), theme);
+        const native = await h.page.evaluate(
+          async ({ locale, theme }) => {
+            const template = await (await fetch(`./shell.${locale}.${theme}.json`)).json(),
+              origin = document.querySelector('.motion-scene').getBoundingClientRect();
+            return Object.entries(template.reference).map(([name, r]) => {
+              const e = document.querySelector(`[data-native="${name}"]`),
+                a = e.getBoundingClientRect();
+              return {
+                name,
+                expected: r,
+                actual: {
+                  x: a.x - origin.x,
+                  y: a.y - origin.y,
+                  width: a.width,
+                  height: a.height,
+                  background: getComputedStyle(e).backgroundColor,
+                  borderColor: getComputedStyle(e).borderTopColor,
+                },
+              };
+            });
+          },
+          { locale, theme },
         );
+        for (const { name, actual, expected } of native) {
+          for (const key of ['x', 'y', 'width', 'height'])
+            assert.ok(
+              Math.abs(actual[key] - expected[key]) < 1,
+              `${locale}/${theme}/${name}.${key}: ${actual[key]} vs ${expected[key]}`,
+            );
+          assert.equal(actual.background, expected.background);
+          assert.equal(actual.borderColor, expected.borderColor);
+        }
 
-        const layout = await page.evaluate(() => {
-          const failures = [];
-          const widths = {};
-          for (const group of document.querySelectorAll('[data-shell-tab]')) {
-            const name = group.getAttribute('data-shell-tab');
-            const path = group.querySelector('path').getBBox();
-            const text = group.querySelector('text');
-            const bounds = text.getBBox();
-            const icon = document.querySelector(`[data-ui="${name}"]`).getBBox();
-            if (
-              bounds.x < icon.x + icon.width + 1 ||
-              bounds.x + bounds.width > path.x + path.width - 15
-            )
-              failures.push(name);
-            if (Number(text.getAttribute('font-size')) !== 12) failures.push(name + ':font');
-            widths[name] = path.width;
-          }
-          for (const group of document.querySelectorAll('[data-shell-region]')) {
-            const box = group.querySelector('rect').getBBox();
-            const text = group.querySelector('text').getBBox();
-            if (text.x < box.x || text.x + text.width > box.x + box.width)
-              failures.push(group.getAttribute('data-shell-region'));
-          }
-          const advanced = document.querySelector('[data-shell-menu="advanced"] text').getBBox();
-          const title = document
-            .querySelector('[data-shell-region="project-title"] rect')
-            .getBBox();
-          if (advanced.x + advanced.width + 20 > title.x) failures.push('advanced-title-gap');
-          const last = document.querySelector('[data-shell-tab="sound"] path').getBBox();
-          const search = document.querySelector('[data-shell-region="search"] rect').getBBox();
-          if (last.x + last.width + 12 > search.x) failures.push('tabs-search-gap');
-          return { failures, widths };
-        });
-        assert.deepEqual(layout.failures, [], JSON.stringify({ locale, layout }));
-        if (locale === 'en') assert.ok(layout.widths.costume > 100);
-        else assert.equal(layout.widths.costume, 90);
-
-        await page.screenshot({ path: `artifacts/p3/${name}-browser.png` });
-        await writeFile(`artifacts/p3/${name}-video.png`, rasterFrame(scene, time, font));
-        const diff = await page.evaluate(async (name) => {
-          const pixels = async (suffix) => {
-            const image = new Image();
-            image.src = `/artifacts/p3/${name}-${suffix}.png`;
-            await image.decode();
-            const canvas = document.createElement('canvas');
-            canvas.width = 1280;
-            canvas.height = 720;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(image, 0, 0);
-            return ctx.getImageData(0, 0, 1280, 720).data;
-          };
-          const a = await pixels('browser'),
-            b = await pixels('video');
-          let sum = 0,
-            changed = 0;
-          for (let i = 0; i < a.length; i += 4) {
-            let max = 0;
-            for (let c = 0; c < 3; c++) {
-              const d = Math.abs(a[i + c] - b[i + c]);
-              sum += d;
-              max = Math.max(max, d);
-            }
-            if (max > 32) changed++;
-          }
-          return { mean: sum / (1280 * 720 * 3), changed: changed / (1280 * 720) };
-        }, name);
-        assert.ok(diff.mean < 3 && diff.changed < 0.025, JSON.stringify({ name, diff }));
+        await h.page
+          .locator('.motion-scene')
+          .screenshot({ path: `artifacts/migration/${locale}-${theme}.png` });
       }
-    assert.deepEqual(errors, []);
+    const widths = [];
+    for (const family of ['monospace', 'serif']) {
+      await h.page.evaluate(async (family) => {
+        await window.player.setOptions({ locale: 'en', theme: 'light', font: { family } });
+        await window.player.seek(window.player.duration);
+      }, family);
+      widths.push(
+        await h.page
+          .locator('.motion-scene svg text')
+          .first()
+          .evaluate((e) => e.getBoundingClientRect().width),
+      );
+    }
+    assert.notEqual(widths[0], widths[1]);
+    const failed = await h.page.evaluate(async () => {
+      const old = document.querySelector('.motion-scene');
+      try {
+        await window.player.setOptions({
+          locale: 'en',
+          theme: 'light',
+          font: { family: 'Missing Font', url: '/absent-font.ttf' },
+        });
+        return false;
+      } catch {
+        return old === document.querySelector('.motion-scene');
+      }
+    });
+    assert.equal(failed, true);
+    await h.page.evaluate(async () => {
+      const a = window.player.setOptions({ locale: 'en', theme: 'dark' });
+      const b = window.player.setOptions({ locale: 'en', theme: 'light' });
+      await Promise.allSettled([a, b]);
+    });
+    assert.equal(await h.page.evaluate(() => window.player.appearance.theme), 'light');
+    const multiple = await h.page.evaluate(async () => {
+      const font = { family: 'Shared Requested Font', url: '/font.ttf' };
+      await window.player.setOptions({ locale: 'en', theme: 'light', font });
+      const firstFamily = getComputedStyle(document.querySelector('.motion-scene')).fontFamily;
+      const div = document.createElement('div');
+      div.style.width = '1280px';
+      document.body.append(div);
+      const second = window.mount(div, window.en, {
+        font,
+        runtimeUrl: new URL('./', location.href).href,
+      });
+      await second.ready;
+      await second.seek(1);
+      const ids = Array.from(document.querySelectorAll('.motion-scene [id]'), (e) => e.id);
+      const unique =
+        new Set(ids).size === ids.length &&
+        firstFamily !== getComputedStyle(div.querySelector('.motion-scene')).fontFamily &&
+        firstFamily === getComputedStyle(document.querySelector('.motion-scene')).fontFamily;
+      second.dispose();
+      div.remove();
+      return unique;
+    });
+    assert.equal(multiple, true);
+    await h.page.evaluate(async () => {
+      const pending = window.player.setOptions({ locale: 'en', theme: 'dark' });
+      window.player.dispose();
+      await Promise.allSettled([pending]);
+    });
+    assert.equal(await h.page.locator('[data-motion-preparation]').count(), 0);
+    assert.equal(await h.page.locator('.motion-scene').count(), 0);
+    const destroyed = await h.page.evaluate(async () => {
+      const div = document.createElement('div');
+      document.body.append(div);
+      const p = window.mount(div, window.zh, { runtimeUrl: new URL('./', location.href).href });
+      p.dispose();
+      await Promise.allSettled([p.ready]);
+      const clean = div.children.length === 0;
+      div.remove();
+      return clean;
+    });
+    assert.equal(destroyed, true);
   } finally {
-    await browser?.close();
-    await server.close();
+    await h.close();
   }
 });

@@ -130,6 +130,29 @@ type StepOperation =
   | { op: 'selectTarget'; targetId: string }
   | { op: 'selectCategory'; category: string; duration?: number }
   | { op: 'reveal'; entry: string; duration?: number };
+export interface StageClip {
+  src: string;
+  start: number;
+  in: number;
+  duration: number;
+}
+export interface TypingFrame {
+  text: string;
+  preedit?: boolean;
+  preeditStart?: number;
+  candidates?: string[];
+}
+export interface TutorialBundle {
+  schemaVersion: 2;
+  kind: 'blockdia-motion/tutorial';
+  adapterVersion: string;
+  tutorial: TutorialSpec;
+  typing: Record<string, TypingFrame[]>;
+}
+export interface FontOptions {
+  family: string;
+  url?: string;
+}
 export interface TutorialSpec {
   schemaVersion: 1;
   adapter: 'turbowarp';
@@ -138,6 +161,7 @@ export interface TutorialSpec {
   viewport: { width: 1280; height: 720 };
   defaults: { theme: 'light' | 'dark'; locale: 'zh-CN' | 'en' };
   steps: Step[];
+  stage?: { clips: StageClip[] };
 }
 export interface Anchor extends Point {
   bounds?: Rect;
@@ -231,7 +255,14 @@ export interface ToolboxEntry {
   position: Point;
 }
 export interface TargetCatalog {
-  categories: { key: string; label: string; y: number; scroll?: number; color?: string }[];
+  categories: {
+    key: string;
+    label: string;
+    y: number;
+    scroll?: number;
+    color?: string;
+    borderColor?: string;
+  }[];
   toolbox: ToolboxEntry[];
   decorations: {
     kind: 'label' | 'button' | 'separator' | 'checkbox';
@@ -259,15 +290,14 @@ export interface Manifest {
     };
     blocks: string;
     gui: string;
-    fontSha256: string;
     buildFiles: Record<string, string>;
   };
   viewport: { width: number; height: number };
   locale: string;
   colorTheme?: 'light' | 'dark';
   appearance?: { gui: Record<string, string>; blocks: Record<string, string> };
+  fontFamily?: string;
   theme: string;
-  chrome: string;
   layout: {
     workspace: Rect;
     toolbox: Rect;
@@ -575,9 +605,7 @@ export function assertResources(scene: CompiledScene): void {
     (m.appearance !== undefined &&
       m.appearance.gui?.['color-scheme'] !== (m.colorTheme ?? 'light')) ||
     (m.colorTheme !== undefined && !['light', 'dark'].includes(m.colorTheme)) ||
-    typeof m.theme !== 'string' ||
-    typeof m.chrome !== 'string' ||
-    typeof m.source?.fontSha256 !== 'string'
+    typeof m.theme !== 'string'
   )
     fail('SCHEMA', 'manifest', 'Incomplete manifest');
   const point = (p: Point | undefined) => !!p && Number.isFinite(p.x) && Number.isFinite(p.y);

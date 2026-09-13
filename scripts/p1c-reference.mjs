@@ -6,11 +6,14 @@ import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import { resolve, extname } from 'node:path';
 import { chromium } from 'playwright-core';
+import { createAdapter } from '../packages/asset-builder/dist/index.js';
 import { targetProject } from '../tests/fixtures/target-project.mjs';
 const project = targetProject(),
   root = resolve('.cache/gui/build'),
   out = resolve('docs/p1c-baseline');
-const scene = JSON.parse(await readFile('artifacts/p1c/scene.json', 'utf8'));
+const adapter = await createAdapter({ project });
+const scene = { manifest: structuredClone(adapter.manifest) };
+await adapter.dispose();
 const require = createRequire(resolve('.cache/gui/package.json')),
   Zip = require('@turbowarp/jszip');
 const zip = new Zip();

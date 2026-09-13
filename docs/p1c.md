@@ -1,3 +1,5 @@
+> 历史设计与验收记录。当前发布格式、播放器和导出链路见 [客户端渲染迁移](client-rendering.md) 与 [API](api.md)。
+
 # P1c：Target 上下文与完整 toolbox
 
 已完成。教程现在显式声明项目与初始 target，准备器为每个 target 生成固定 TurboWarp 的完整核心 toolbox。编译器、纯求值器、浏览器和视频共同消费同一份目录与资源；播放时没有 Blockly workspace 或 VM。

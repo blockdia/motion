@@ -10,6 +10,9 @@
     }
   },
   "dependencies": {
-    "@blockdia-motion/core": "workspace:*"
+    "@blockdia-motion/core": "workspace:*",
+    "@blockdia-motion/authoring": "workspace:*",
+    "@blockdia-motion/asset-builder": "workspace:*",
+    "@blockdia-motion/adapter-turbowarp": "workspace:*"
   }
 }

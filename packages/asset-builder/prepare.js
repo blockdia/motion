@@ -1,5 +1,10 @@
 /* Preparation-only pinned Blockly bridge. SVG normalization follows P0. */
-window.startPreparation = async function (project, locale = 'zh-CN', theme = 'light') {
+window.startPreparation = async function (
+  project,
+  locale = 'zh-CN',
+  theme = 'light',
+  fontConfig = { family: 'system-ui, sans-serif' },
+) {
   // The pinned editor intentionally randomizes colour_picker defaults and generated IDs.
   // A preparation-only seed makes those real defaults reproducible, without replacing definitions.
   const originalRandom = Math.random;
@@ -15,15 +20,21 @@ window.startPreparation = async function (project, locale = 'zh-CN', theme = 'li
   const editor = window.createEditorContext(project);
   let currentTarget;
   B.ScratchMsgs.setLocale(locale === 'zh-CN' ? 'zh-cn' : 'en');
-  const font = new FontFace('Motion Sans', 'url(/font.ttf)');
-  await font.load();
-  document.fonts.add(font);
+  const fontFamily = fontConfig.family;
+  if (fontConfig.url) {
+    const font = await new FontFace(fontFamily, `url(${JSON.stringify(fontConfig.url)})`).load();
+    document.fonts.add(font);
+  }
+  await document.fonts.load(`16px ${fontFamily}`);
+  await document.fonts.ready;
   const style = document.createElement('style');
-  style.textContent =
-    '.blocklyHtmlInput {font-family:"Motion Sans"!important} .blocklyText {font-family:"Motion Sans"!important;font-size:12pt!important;font-weight:400!important}';
   document.head.append(style);
+  style.sheet.insertRule('.blocklyHtmlInput,.blocklyText {}');
+  const rule = style.sheet.cssRules[0].style;
+  rule.setProperty('font-family', fontFamily, 'important');
+  style.sheet.insertRule('.blocklyText {font-size:12pt!important;font-weight:400!important}', 1);
   const ws = B.inject('workspace', {
-    media: '/source/media/',
+    media: new URL('media/', location.href).href,
     // An omitted toolbox loads Blockly.Blocks.defaultToolbox, whose IDs can collide with tutorial IDs.
     toolbox: '<xml></xml>',
     sounds: false,
@@ -120,7 +131,7 @@ window.startPreparation = async function (project, locale = 'zh-CN', theme = 'li
         el.setAttribute(prop, css.getPropertyValue(prop));
       if (nativeFilter) el.setAttribute('filter', `url(#${key}-replacement)`);
       if (el.localName === 'text') {
-        el.setAttribute('font-family', 'Motion Sans');
+        el.setAttribute('font-family', fontFamily);
         el.setAttribute('font-size', '16');
         el.setAttribute('font-weight', '400');
       }
@@ -221,7 +232,7 @@ window.startPreparation = async function (project, locale = 'zh-CN', theme = 'li
       block.showContextMenu_({ clientX: 0, clientY: 0, preventDefault() {}, stopPropagation() {} });
       if (!captured?.length) throw Error('CAPABILITY: No block context menu');
       const ctx = document.createElement('canvas').getContext('2d');
-      ctx.font = '13px "Motion Sans"';
+      ctx.font = `13px ${fontFamily}`;
       return {
         options: captured.map((o, i) => [o.text, o.text === deleteLabel ? 'delete' : `item:${i}`]),
         enabled: captured.map((o) => !!o.enabled),
@@ -273,7 +284,7 @@ window.startPreparation = async function (project, locale = 'zh-CN', theme = 'li
       const source = field.sourceBlock_;
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      ctx.font = 'bold 13px "Motion Sans"';
+      ctx.font = `bold 13px ${fontFamily}`;
       return {
         options,
         width: Math.max(150, ...options.map((o) => ctx.measureText(o[0]).width + 60)),
@@ -365,7 +376,7 @@ window.startPreparation = async function (project, locale = 'zh-CN', theme = 'li
         };
         const canvas = document.createElement('canvas'),
           ctx = canvas.getContext('2d');
-        ctx.font = `${inputCss.fontWeight} ${inputCss.fontSize} "Motion Sans"`;
+        ctx.font = `${inputCss.fontWeight} ${inputCss.fontSize} ${fontFamily}`;
         const metrics = ctx.measureText(editing.text);
         resources[key].input = {
           bounds,
@@ -444,7 +455,7 @@ window.startPreparation = async function (project, locale = 'zh-CN', theme = 'li
   catalogHost.style.cssText = 'width:780px;height:590px';
   document.body.append(catalogHost);
   const catalogWs = B.inject(catalogHost, {
-    media: '/source/media/',
+    media: new URL('media/', location.href).href,
     toolbox: '<xml><category name="Loading" id="loading"/></xml>',
     sounds: false,
     scrollbars: true,
@@ -523,6 +534,7 @@ window.startPreparation = async function (project, locale = 'zh-CN', theme = 'li
       label: B.utils.replaceMessageReferences(c.categoryName),
       scroll: c.position * scale,
       color: cats[i].colour_,
+      borderColor: cats[i].secondaryColour_,
     }));
     const entries = [];
     for (const [index, root] of flyout.workspace_

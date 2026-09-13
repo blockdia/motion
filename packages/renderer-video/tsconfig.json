@@ -11,6 +11,12 @@
     },
     {
       "path": "../renderer-browser"
+    },
+    {
+      "path": "../authoring"
+    },
+    {
+      "path": "../asset-builder"
     }
   ]
 }

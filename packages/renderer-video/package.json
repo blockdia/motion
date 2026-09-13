@@ -12,6 +12,7 @@
   "dependencies": {
     "@blockdia-motion/core": "workspace:*",
     "@blockdia-motion/renderer-browser": "workspace:*",
-    "@resvg/resvg-js": "2.6.2"
+    "@blockdia-motion/authoring": "workspace:*",
+    "@blockdia-motion/asset-builder": "workspace:*"
   }
 }

@@ -165,12 +165,13 @@ export function parseTutorial(value: unknown): TutorialSpec {
     'steps',
     'project',
     'initialTarget',
+    'stage',
   ]);
   if (o.schemaVersion !== 1 || o.adapter !== 'turbowarp')
     fail('SCHEMA', 'tutorial', 'Expected schemaVersion 1 and turbowarp adapter');
   const v = object(o.viewport, 'viewport', ['width', 'height']);
   if (v.width !== 1280 || v.height !== 720)
-    fail('UNSUPPORTED', 'viewport', 'P1b uses the P1a 1280x720 layout');
+    fail('UNSUPPORTED', 'viewport', 'Tutorial canvas must be 1280x720');
   const d = object(o.defaults, 'defaults', ['theme', 'locale']);
   if ((d.theme !== 'light' && d.theme !== 'dark') || (d.locale !== 'zh-CN' && d.locale !== 'en'))
     fail('UNSUPPORTED', 'defaults', 'Supported variants: light or dark / zh-CN or en');
@@ -182,6 +183,28 @@ export function parseTutorial(value: unknown): TutorialSpec {
     )
   )
     fail('TARGET', 'initialTarget', 'Unknown initial target');
+  if (o.stage !== undefined) {
+    const stage = object(o.stage, 'stage', ['clips']);
+    if (!Array.isArray(stage.clips)) fail('SCHEMA', 'stage.clips', 'Expected clips array');
+    let end = 0;
+    for (const [i, value] of stage.clips.entries()) {
+      const path = `stage.clips[${i}]`;
+      const clip = object(value, path, ['src', 'start', 'in', 'duration']);
+      string(clip.src, path + '.src');
+      if (/^(?:data|javascript|file):/i.test(clip.src as string))
+        fail('MEDIA', path, 'Expected static video URL');
+      for (const key of ['start', 'in', 'duration'])
+        if (
+          typeof clip[key] !== 'number' ||
+          !Number.isFinite(clip[key]) ||
+          (clip[key] as number) < 0
+        )
+          fail('MEDIA', path, 'Invalid clip timing');
+      if ((clip.duration as number) <= 0 || (clip.start as number) < end)
+        fail('MEDIA', path, 'Clips must be ordered and non-overlapping');
+      end = (clip.start as number) + (clip.duration as number);
+    }
+  }
   array(o.steps, 'steps');
   o.steps.forEach((s, i) => step(s, `steps[${i}]`));
   return structuredClone(value) as TutorialSpec;

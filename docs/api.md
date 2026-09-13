@@ -40,63 +40,70 @@ scene.direct.delete('block'); // 立即移除整段，无动画
 ```sh
 pnpm example:all-api
 pnpm preview
-# 打开 /apps/playground/index.html?scene=/artifacts/all-api/scene.json
+# 打开 /apps/playground/index.html?scene=/artifacts/all-api/tutorial.json
 ```
 
 编译、检查、目录查询和视频导出：
 
 ```sh
-pnpm motion check examples/all-api/tutorial.ts
+pnpm motion compile examples/all-api/tutorial.ts artifacts/all-api/tutorial.json
+pnpm motion check artifacts/all-api/tutorial.json
 pnpm motion catalog examples/all-api/tutorial.ts artifacts/all-api/catalog.json
-pnpm motion compile examples/all-api/tutorial.ts artifacts/all-api/scene.json
-pnpm motion export artifacts/all-api/scene.json artifacts/all-api/tutorial.mp4 30
+pnpm motion export artifacts/all-api/tutorial.json artifacts/all-api/tutorial.mp4 30 --font /absolute/path/font.ttf
 ```
 
-运行时 API（实际调用可参考 playground 和集成测试）：
+`compile` 发布版本 2 的 `TutorialBundle`；积木布局和合法性完整校验由 `check` 或浏览器准备阶段执行。`catalog` 返回真实目录键、积木定义与能力描述，不包含 SVG 素材。Node 也可从 `@blockdia-motion/authoring/bundle` 调用 `bundleTutorial(spec)`。
+
+浏览器使用 `runtime:build` 生成的模块入口，不需要额外 import map：
 
 ```ts
-const adapter = await createAdapter({ project: tutorial.project });
-let scene;
-try {
-  scene = await compile(tutorial, adapter);
-} finally {
-  await adapter.dispose();
-}
-assertResources(scene);
-const snapshot = evaluate(2.5, scene); // 无副作用，支持任意顺序采样
-const svg = frameSvg(2.5, scene);
-const player = mountPlayer(document.querySelector('#player')!, scene);
-player.seek(2.5);
+import { mountPlayer } from '/runtime/turbowarp-7c58de66-a2946eeb-client-1/modules/renderer-browser/index.js';
+const url = new URL('/tutorials/example/tutorial.json', location.href);
+const bundle = await (await fetch(url)).json();
+const player = mountPlayer(document.querySelector('#player'), bundle, {
+  runtimeUrl: '/runtime/turbowarp-7c58de66-a2946eeb-client-1/',
+  resourceBaseUrl: url.href,
+  // 默认采用浏览器上的 Helvetica Neue / Helvetica / Arial / sans-serif。
+  // font: { family: 'Tutorial Font', url: '/fonts/tutorial.woff2' },
+  cursorMotion: 'curve',
+  cursorClickEffect: 'shrink',
+  async loadVariant({ locale }, signal) {
+    const response = await fetch(`/tutorials/example/tutorial.${locale}.json`, { signal });
+    if (!response.ok) throw Error('Language variant unavailable');
+    return response.json();
+  },
+});
+await player.ready;
+await player.seek(2.5); // 等待 DOM 与舞台视频帧就绪
 player.play();
 player.pause();
-console.log(player.time, player.playing);
-player.dispose(); // 切换场景或卸载前释放 RAF 与监听器
-// Node: rasterFrame(scene, 2.5, fontPath)、exportVideo(scene, {output, font: fontPath, fps: 30})
-```
-
-`createAdapter` 来自 asset-builder，`compile` 来自 authoring，`assertResources/evaluate` 来自 core，`frameSvg/mountPlayer` 来自 renderer-browser，`rasterFrame/exportVideo` 来自 renderer-video。包名前缀均为 `@blockdia-motion/`。渲染前需加载 manifest 指定字体；playground 已校验字体摘要。
-
-鼠标点按效果默认为 `circle`（显示圆圈），也可选 `shrink`（按下时缩至 75%，松开恢复；拖动期间保持缩小）。缩放以箭头尖端为中心，不改变点击位置。左右键均适用。
-
-```ts
-const player = mountPlayer(host, scene, { cursorClickEffect: 'shrink' });
-player.setCursorClickEffect('circle'); // 立即切换，不改变播放时间或视角
-const svg = frameSvg(2.5, scene, 'motion', undefined, { cursorClickEffect: 'shrink' });
-const png = rasterFrame(scene, 2.5, fontPath, { cursorClickEffect: 'shrink' });
-await exportVideo(scene, { output, font: fontPath, cursorClickEffect: 'shrink' });
-```
-
-Playground 顶部的“鼠标点按效果”可直接切换，重新加载或切换教程时保留当前选择。
-
-鼠标运动模式 `cursorMotion` 默认为 `linear`（直线运动），可选 `curve`（三次贝塞尔曲线 + 随路径转向，到达时回正）。曲线以参考示例为基础，按距离平滑增加弧度与倾斜：24 像素以内直走，48 像素以内不转向，约 320–400 像素才达到完整效果；短时动作进一步减弱。空手移动最多倾斜 60°，拖拽最多 24°，拖拽弧度降至 45%。保留教程的时长、缓动和精确落点，不采用依赖帧率的弹簧积分。拖动的积木沿同一曲线移动，保持抓取偏移，自身不旋转。原地点按不旋转。
-
-```ts
-const options = { cursorMotion: 'curve', cursorClickEffect: 'shrink' } as const;
-const player = mountPlayer(host, scene, options);
+await player.setOptions({ locale: 'zh-CN', theme: 'dark' });
 player.setCursorMotion('linear');
-const snapshot = evaluate(2.5, scene, options); // 含曲线坐标与 cursor.rotation（角度）
-const svg = frameSvg(2.5, scene, 'motion', undefined, options);
-await exportVideo(scene, { output, font: fontPath, ...options });
+player.setCursorClickEffect('circle');
+console.log(player.time, player.duration, player.playing, player.view);
+player.resetView();
+player.dispose();
 ```
 
-Playground 的“鼠标运动模式”与点按效果可独立切换，切换教程或重新加载后保留选择；时间跳转与视频逐帧采样产生相同结果。
+语言变化需要对应语义教程的加载器；主题和字体变化复用当前语义教程，在临时 iframe 中重新准备。切换暂停并保留时间，准备成功后替换；失败保留旧画面，Promise 拒绝。先等待 `ready` 再操作播放器。销毁释放监听器、视频、字体和准备环境。
+
+`resourceBaseUrl` 是教程文件 URL 或以 `/` 结尾的资源目录 URL；语言变体的相对媒体路径仍使用这个资源基址。运行时必须同源，视频和自定义字体跨域时由资源服务提供相应 CORS 响应。
+
+`cursorClickEffect` 可选 `circle`（默认）或 `shrink`；`cursorMotion` 可选 `linear`（默认）或 `curve`。曲线由时间确定，拖拽保持抓取偏移，不依赖帧率积分。继续播放和跳转恢复教程视角。
+
+舞台视频声明在教程根节点，片段按开始时间排序，不重叠：
+
+```ts
+stage: {
+  clips: [
+    { src: './stage.mp4', start: 1, in: 0.5, duration: 3 },
+    { src: './ending.mp4', start: 5, in: 0, duration: 2 },
+  ],
+}
+```
+
+`start` 是教程秒数，`in` 是媒体起点，`duration` 是播放时长；区间为 `[start, start + duration)`，片段外显示舞台底色。视频固定一倍速、静音、等比例容纳；教程总时长覆盖最后一个片段。不存在的媒体、越界和解码失败会报错，缓冲时暂停教程时钟。CLI 编译会将相对媒体路径重定位到输出文件；发布时应一同复制媒体。
+
+Node 的 `exportVideo(bundle, { output, font, fps, resourceBaseUrl })` 来自 `@blockdia-motion/renderer-video`，其中 `font` 是必填的本地字体路径。导出逐帧调用浏览器播放器并截图，再由 FFmpeg 编码；`resourceBaseUrl` 相对本地静态服务根目录解析。首轮不输出音轨。
+
+`CompiledScene`、`compile(spec, adapter)` 和素材 manifest 是准备器内部协议，用于语义与布局测试，不是发布格式。原整场 `frameSvg` 和 `rasterFrame` API 已移除。

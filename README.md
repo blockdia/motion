@@ -1,41 +1,40 @@
 # Blockdia Motion
 
-用代码编排 TurboWarp / Blockdia 风格的代码编辑教程，支持浏览器播放与离线视频渲染。
+用 TypeScript/JSON 编排 TurboWarp 风格的编辑教程，支持客户端播放和离线视频导出。
 
-已完成 **P3 浏览器有限交互与视觉变体**（[使用与验收](docs/p3.md)）：工作区平移／缩放、浅深主题、中英文资源与保留时间的选项切换。**P2 常规代码编辑**（[支持矩阵与验收](docs/p2.md)）：新增拆分、删除、输入槽连接、字段菜单、模拟输入法、高亮与标注。此前的 **P1c Target 上下文与完整 toolbox** 已提供：TypeScript/JSON 作者入口、语义编译、真实 Blockly 校验与 SVG 提取、可跳转播放器，以及同一编译产物的 CLI 视频导出。目录由固定 GUI/Blockly 按项目生成，支持舞台与多个角色、局部数据、自定义积木目录及 `selectTarget`，角色列表随教程同步显示选中状态。编辑器画面复用 P1a 的固定 TurboWarp 布局基线；P0 固定示例仍保留。
+当前链路是：**语义教程资源 → 浏览器布局与 Blockly 素材准备 → 销毁临时准备环境 → HTML/SVG 时间线播放**。编辑器壳复用固定版本 TurboWarp 的真实 DOM/CSS，舞台播放静音视频，不执行 Scratch 项目。
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm p0:bootstrap
 pnpm p1a:reference:bootstrap
 pnpm p1c:bootstrap
-pnpm test
-pnpm test:integration
-pnpm p1b
-pnpm p1c
+pnpm runtime:build
+pnpm p3
 pnpm preview
 ```
 
-需要 Node.js ≥22.18、已安装构建依赖的相邻 `scratch-blocks`、`scratch-gui` checkout、Chrome、FFmpeg、Python 3 和 Java。其他路径/系统配置见 [P0 复现说明](docs/p0.md)。
+打开 [本地 playground](http://127.0.0.1:4173/apps/playground/index.html)。默认示例展示中英文、浅深主题和舞台视频。首次 `runtime:build` 会启动无头 Chrome，从固定 GUI 提取外壳；后续复用模板。修改外壳提取器后会自动重建，也可执行 `pnpm shell:build`。
 
-预览位于 [本地播放器](http://127.0.0.1:4173/apps/playground/index.html)，默认展示 P3 中英文交互示例，可切换 P2 常规编辑、基础编辑和多角色目录示例。先执行 `pnpm p3`；其他示例执行 `pnpm example:all-api` 或下方 P2 编译命令，无需导出视频即可预览；页面会提示尚未准备的示例。`?scene=/路径/scene.json` 可加载自定义编译产物，切换教程会停止旧播放器并回到新教程起点。
+开发环境需要 Node.js ≥22.18、Chrome、FFmpeg，以及生成固定版本 Blockly/GUI 所需的相邻 checkout 和构建依赖。查看 [构建来源](docs/p0.md) 与 [新架构及迁移](docs/client-rendering.md)。这些源码 checkout 只用于构建，正式播放不访问它们。
 
 ```sh
-pnpm build
-pnpm motion compile examples/structural-editing/tutorial.ts artifacts/p2/scene.json
-pnpm motion catalog examples/basic-editing/tutorial.json artifacts/catalog.json
-pnpm motion check examples/basic-editing/tutorial.json
-pnpm motion compile examples/basic-editing/tutorial.ts artifacts/p1b/scene.json
-pnpm motion export artifacts/p1b/scene.json artifacts/p1b/tutorial.mp4 30
+pnpm motion compile examples/all-api/tutorial.ts artifacts/all-api/tutorial.json
+pnpm motion check artifacts/all-api/tutorial.json
+pnpm motion catalog examples/all-api/tutorial.ts artifacts/all-api/catalog.json
+pnpm motion export artifacts/all-api/tutorial.json artifacts/all-api/tutorial.mp4 30 --font /absolute/path/font.ttf
+pnpm test
+pnpm test:integration
 ```
 
-- [底层与高层 API](docs/api.md) / [全部 API 示例](examples/all-api/tutorial.ts)
-- [TypeScript 示例](examples/basic-editing/tutorial.ts) / [等价 JSON](examples/basic-editing/tutorial.json)
-- [P1c 目录提取、项目上下文与验收](docs/p1c.md)
-- [P2 常规编辑、示例与验收](docs/p2.md)
-- [P3 视角交互、主题与语言](docs/p3.md)
-- [P1b 作者接口、支持矩阵与验收](docs/p1b.md)
-- [架构与实施计划](docs/plan.md)
-- [P1a 参考画面、布局与允许差异](docs/p1a.md)
-- [P0 素材路线与性能基线](docs/p0.md)
-- [第三方素材来源](THIRD_PARTY_NOTICES.md)
+`compile` 不启动浏览器，也不测量字体。新版 `tutorial.json` 不包含积木 SVG；旧的预渲染 `scene.json` 必须重新编译。`?scene=/path/tutorial.json` 可加载自定义语义资源。
+
+静态部署时复制生成的版本化运行时目录、教程 JSON 和媒体文件，参照 [播放器 API](docs/api.md) 设置 `runtimeUrl` 与 `resourceBaseUrl`。网页默认使用 TurboWarp 风格的系统字体栈，允许指定字体；视频导出必须提供字体文件，不保证不同系统字体下逐像素一致。
+
+- [教程 API 与播放器](docs/api.md)
+- [客户端渲染、外壳来源与限制](docs/client-rendering.md)
+- [迁移成本实测](docs/client-rendering-cost.md)
+- [全部 API 示例](examples/all-api/tutorial.ts)
+- [第三方来源与许可](THIRD_PARTY_NOTICES.md)
+
+P0–P3 文档保留为历史设计和验收记录，当前格式及入口以以上文档为准。

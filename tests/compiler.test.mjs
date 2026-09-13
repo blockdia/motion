@@ -7,7 +7,7 @@ import {
   defaultProject,
 } from '../packages/authoring/dist/index.js';
 import { evaluate, frameCount, assertResources, descendants } from '../packages/core/dist/index.js';
-import { frameSvg, mountPlayer } from '../packages/renderer-browser/dist/index.js';
+
 const spec = (steps) => ({
   schemaVersion: 1,
   adapter: 'turbowarp',
@@ -240,7 +240,7 @@ test('semantic drag reveals offscreen source, preserves toolbox, joins once, sub
   const roots = result.manifest.resources[final.nodes[0].asset].anchors;
   assert.deepEqual(roots.hat.connections.next, roots.move.connections.previous);
   assert.equal(roots['move.STEPS.shadow'].fields.NUM.width, 40);
-  assert.match(frameSvg(result.duration, result), /clip-path="url\(#motion-workspace\)"/);
+
   assert.deepEqual(await compile(JSON.parse(JSON.stringify(tutorial)), a), result);
 });
 test('random seeking equals sequential sampling, including exact boundaries, and never mutates compiled data', async () => {
@@ -363,7 +363,7 @@ test('missing resources fail before rendering/export and frame sampling excludes
   );
   delete result.manifest.resources[result.events[0].nodes[0].asset];
   assert.throws(() => assertResources(result), /RESOURCE/);
-  assert.throws(() => frameSvg(0.1, result), /RESOURCE/);
+
   assert.equal(frameCount(6.200000000000001, 30), 186);
   assert.equal(frameCount(1.01, 30), 31);
   assert.equal(frameCount(1, 30), 30);
@@ -478,16 +478,10 @@ test('project schema and adapter context reject ambiguity without depending on p
     /PARALLEL_CONFLICT/,
   );
 });
-test('render namespaces isolate theme selectors and SVG references; corrupt compiled metadata fails', async () => {
+test('corrupt compiled metadata fails before drawing', async () => {
   const a = await setup();
   a.manifest.theme = '.fill-paint0{fill:red}';
   const scene = await compile(spec([{ op: 'create', blocks: [hat('h')], to: slot('main') }]), a);
-  const first = frameSvg(0.5, scene, 'first'),
-    second = frameSvg(0.5, scene, 'second');
-  assert.match(first, /\.scene-first \.fill-paint0/);
-  assert.match(second, /id="second-workspace"/);
-  assert.doesNotMatch(second, /url\(#first-/);
-  assert.throws(() => frameSvg(0.5, scene, 'bad"namespace'), /NAMESPACE/);
   const invalid = structuredClone(scene);
   invalid.events[0].nodes[0].x = NaN;
   assert.throws(() => assertResources(invalid), /SCHEMA/);
@@ -613,30 +607,14 @@ test('target list follows timeline selection, escapes names, scrolls determinist
   assert.equal(evaluate(selection.time - 0.01, scene).targetId, 'sprite-0');
   assert.equal(evaluate(selection.time - 0.01, scene).cursor.pressed, true);
   assert.ok(scene.tracks.some((t) => t.kind === 'targetScroll'));
-  const initial = frameSvg(0, scene),
-    last = frameSvg(scene.events.find((e) => e.targetId === 'sprite-14').time, scene),
-    stage = frameSvg(scene.events.find((e) => e.targetId === 'stage').time, scene);
-  assert.match(initial, /data-target-id="sprite-0" data-selected="true"/);
-  assert.match(last, /data-target-id="sprite-14" data-selected="true"/);
-  assert.match(last, /\$&amp; &lt;script&gt; &amp; &quot;测试&quot;/);
-  assert.doesNotMatch(last, /<script>|data-slot="targets"/);
-  assert.ok(Number(last.match(/data-scroll="([^"]+)"/)[1]) > 0);
-  assert.match(stage, /data-target-id="stage" data-selected="true"/);
-  assert.match(stage, /data-ui="target-properties" aria-disabled="true"/);
-  assert.match(stage, />名字<\/text>/);
-  assert.doesNotMatch(stage, /aria-pressed="true"/);
-  assert.match(initial, /data-property="size"[^>]*>100<\/text>/);
-  assert.match(initial, /data-property="direction"[^>]*>90<\/text>/);
-  assert.equal(frameSvg(scene.events.find((e) => e.targetId === 'sprite-14').time, scene), last);
-  assert.equal(frameSvg(0, scene), initial);
+  assert.equal(evaluate(selection.time, scene).targetId, 'sprite-14');
+  assert.ok(evaluate(selection.time, scene).targetScroll > 0);
   adapter.manifest.project.targets = [adapter.manifest.project.targets[0]];
   const empty = await compile(
     { ...tutorial, initialTarget: 'stage', steps: [{ op: 'wait', duration: 1 }] },
     adapter,
   );
-  const svg = frameSvg(0, empty);
-  assert.equal((svg.match(/data-target-id=/g) ?? []).length, 1);
-  assert.match(svg, /data-scroll="0"/);
+  assert.equal(evaluate(0, empty).targetId, 'stage');
 });
 
 test('only catalog keys and actual fields are accepted; compiled output is target-scoped', async () => {
@@ -671,52 +649,6 @@ test('only catalog keys and actual fields are accepted; compiled output is targe
   assert.deepEqual(Object.keys(scene.finalTargets), ['stage', 'sprite']);
 });
 
-test('playback tolerates a first RAF timestamp preceding play without moving backwards', async () => {
-  const scene = await compile(spec([{ op: 'wait', duration: 2 }]), await setup());
-  const originalRequest = globalThis.requestAnimationFrame;
-  const originalCancel = globalThis.cancelAnimationFrame;
-  let callback;
-  globalThis.requestAnimationFrame = (next) => {
-    callback = next;
-    return 1;
-  };
-  globalThis.cancelAnimationFrame = () => {};
-  const elements = new Map();
-  const host = {
-    innerHTML: '',
-    replaceChildren() {},
-    removeAttribute() {},
-    querySelector(selector) {
-      if (!elements.has(selector))
-        elements.set(selector, {
-          addEventListener() {},
-          removeEventListener() {},
-          replaceChildren() {},
-        });
-      return elements.get(selector);
-    },
-  };
-  let player;
-  try {
-    player = mountPlayer(host, scene);
-    player.seek(0.5);
-    const earlierFrame = performance.now() - 16;
-    player.play();
-    callback(earlierFrame);
-    assert.equal(player.time, 0.5);
-    assert.equal(player.playing, true);
-    callback(performance.now() + 3000);
-    assert.equal(player.time, 2);
-    assert.equal(player.playing, false);
-  } finally {
-    player?.dispose();
-    if (originalRequest) globalThis.requestAnimationFrame = originalRequest;
-    else delete globalThis.requestAnimationFrame;
-    if (originalCancel) globalThis.cancelAnimationFrame = originalCancel;
-    else delete globalThis.cancelAnimationFrame;
-  }
-});
-
 test('P2 splits a next subtree, deletes it, merges independent branches and keeps exact boundaries atomic', async () => {
   const scene = await compile(
     spec([
@@ -742,7 +674,7 @@ test('P2 splits a next subtree, deletes it, merges independent branches and keep
   assert.ok(deletion.to.x < scene.manifest.layout.toolbox.x + scene.manifest.layout.toolbox.width);
   assert.equal(evaluate(scene.duration, scene).nodes.length, 1);
   assert.equal(scene.finalTargets.sprite[0].next, undefined);
-  assert.match(frameSvg(0.8, scene), /&lt;保留&gt;/);
+  assert.equal(evaluate(0.8, scene).overlays[0].text, '<保留>');
   assert.equal(evaluate(scene.duration, scene).overlays.length, 0);
   const before = JSON.stringify(scene);
   evaluate(0.8, scene).overlays[0].bounds.x = -999;
@@ -810,13 +742,6 @@ test('curved cursor keeps drag anchors and exact endpoints, composes click effec
   assert.ok(Math.abs(frames[99].cursor.rotation) < 2);
   for (let i = frames.length - 1; i >= 0; i -= 3)
     assert.deepEqual(evaluate(frames[i].time, scene, options), frames[i]);
-  const svg = frameSvg(mid, scene, 'curve', undefined, options);
-  assert.match(svg, /rotate\([^)]+\) scale\(0.75\)/);
-  assert.doesNotMatch(svg, /data-cursor-click-effect="circle"/);
-  assert.match(
-    frameSvg(mid, scene, 'curve', undefined, { cursorMotion: 'curve' }),
-    /data-cursor-click-effect="circle"/,
-  );
   assert.deepEqual(scene, original);
   assert.throws(() => evaluate(mid, scene, { cursorMotion: 'invalid' }), /UNSUPPORTED/);
 });
