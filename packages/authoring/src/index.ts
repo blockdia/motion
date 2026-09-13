@@ -19,7 +19,7 @@ import {
   type Track,
   type VisualNode,
 } from '@blockdia-motion/core';
-type Root = { block: BlockDefinition; node: VisualNode };
+type Root = { block: BlockDefinition; node: VisualNode; departure?: { id: string; asset: string } };
 type Context = {
   targetScroll: number;
   roots: Map<string, Root>;
@@ -146,28 +146,30 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     c.cursor = { ...to, pressed: false };
     emit(c, start + duration, path, { cursor: c.cursor });
   }
+  function scrollDuration(distance: number) {
+    return Math.max(0, (Math.log(1 / Math.max(1, Math.abs(distance))) / Math.log(0.3) - 1) * 0.06);
+  }
   async function select(c: Context, category: string, t: number, duration: number, path: string) {
     const cat = catalogFor(c.targetId).categories.find((x) => x.key === category);
     if (!cat) fail('CATEGORY', path, `Unsupported category ${category}`);
     c.touched.add('toolbox');
-    if (duration > 0)
-      cursor(
-        c,
-        c.cursor,
-        {
-          x: manifest.layout.categories.x + manifest.layout.categories.width / 2,
-          y: cat.y,
-        },
-        t,
-        duration,
-        path,
-        'easeInOut',
-        false,
-      );
+    if (duration > 0) {
+      const at = {
+        x: manifest.layout.categories.x + manifest.layout.categories.width / 2,
+        y: cat.y,
+      };
+      cursor(c, c.cursor, at, t, 0.2, path + ':approach', 'easeInOut', false);
+      t += 0.2;
+      cursor(c, at, at, t, 0.1, path + ':click', 'linear', true);
+      t += 0.1;
+      emit(c, t, path, { toolbox: { ...c.toolbox, category } });
+    }
     const scroll = Math.min(
       cat.scroll ?? 0,
       Math.max(0, catalogFor(c.targetId).contentHeight - manifest.layout.toolbox.height),
     );
+    if (duration > 0 && scroll !== c.toolbox.scroll)
+      duration = Math.max(duration, scrollDuration(scroll - c.toolbox.scroll));
     if (duration > 0 && scroll !== c.toolbox.scroll)
       c.tracks.push({
         kind: 'scroll',
@@ -202,6 +204,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     if (!visible()) scroll = Math.max(0, top - view.y - inset);
     scroll = Math.min(scroll, Math.max(0, catalogFor(c.targetId).contentHeight - view.height));
     if (scroll !== c.toolbox.scroll) {
+      if (duration > 0) duration = Math.max(duration, scrollDuration(scroll - c.toolbox.scroll));
       if (duration > 0)
         c.tracks.push({
           kind: 'scroll',
@@ -250,6 +253,28 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
         y: parent.node.y + (a.y - b.y) * scale,
       },
     };
+  }
+  // Invert the drag curve so previews depend on connection distance, not a fixed time percentage.
+  // Pinned constants.js: SNAP_RADIUS=48, CONNECTING_SNAP_RADIUS=68 (workspace units).
+  function previewProgress(
+    from: Point,
+    to: Point,
+    radius: number,
+    easing: 'linear' | 'easeInOut',
+    arrival: boolean,
+  ) {
+    const distance = Math.hypot(to.x - from.x, to.y - from.y);
+    const ratio = Math.min(1, (radius * scale) / Math.max(distance, 0.001));
+    const position = arrival ? 1 - ratio : ratio;
+    if (easing === 'linear') return position;
+    let low = 0,
+      high = 1;
+    for (let i = 0; i < 40; i++) {
+      const mid = (low + high) / 2;
+      if (mid * mid * (3 - 2 * mid) < position) low = mid;
+      else high = mid;
+    }
+    return (low + high) / 2;
   }
   async function place(
     c: Context,
@@ -300,12 +325,21 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
         kind: 'preview',
         id: joined.block.id,
         asset: preview,
-        start: t + duration * 0.7,
+        start: t + duration * previewProgress(moving.node, dest.point, 48, easing, true),
         end: t + duration,
         step: path,
         easing: 'linear',
       });
     }
+    if (moving.departure && duration > 0)
+      c.tracks.push({
+        kind: 'preview',
+        ...moving.departure,
+        start: t,
+        end: t + duration * previewProgress(moving.node, dest.point, 68, easing, false),
+        step: path + ':departure',
+        easing: 'linear',
+      });
     const from = { x: moving.node.x, y: moving.node.y };
     emit(c, t, path, {
       nodes: [{ ...moving.node, dragging: drag, opacity: 1 }],
@@ -406,6 +440,11 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
           if (!input.shadow && !input.block) delete parent.inputs![name];
       }
       if (!removed) fail('CONNECTION', path, 'Missing parent connection');
+      if (adapter.preparePreview)
+        moving.departure = {
+          id: root.block.id,
+          asset: await adapter.preparePreview(root.block, id, path),
+        };
       root.block = def;
       root.node.asset = await adapter.prepare(def, path);
       emit(c, t, path, { nodes: [root.node] });
@@ -622,6 +661,15 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
           view = manifest.layout.toolbox;
         const drop = { x: view.x + view.width / 2, y: view.y + Math.min(120, view.height / 2) };
         const to = { x: from.x + drop.x - sourceGrab.x, y: from.y + drop.y - sourceGrab.y };
+        if (moving.departure)
+          c.tracks.push({
+            kind: 'preview',
+            ...moving.departure,
+            start: t,
+            end: t + duration * previewProgress(from, to, 68, easing, false),
+            step: path + ':departure',
+            easing: 'linear',
+          });
         emit(c, t, path, { nodes: [{ ...moving.node, dragging: true }] });
         c.tracks.push({
           kind: 'node',
@@ -681,6 +729,16 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
         };
         const chosen = { x: panel.x + 40, y: panel.y + 4 + menu.rowHeight * (index + 0.5) };
         const start = t;
+        if (adapter.prepareDropdown)
+          c.tracks.push({
+            kind: 'preview',
+            id: root.block.id,
+            asset: await adapter.prepareDropdown(root.block, s.target, path),
+            start,
+            end: start + duration + 0.12,
+            step: path + ':dropdown',
+            easing: 'linear',
+          });
         cursor(c, at, chosen, t, duration, `${path}:option`, 'easeInOut', false);
         t += duration;
         cursor(c, chosen, chosen, t, 0.12, `${path}:select-click`, 'linear', true);

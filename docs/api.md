@@ -29,7 +29,7 @@ scene.direct.delete('block'); // 立即移除整段，无动画
 
 ## 连接与 target 切换
 
-高层连接在接近目标时展示原生 Blockly 插入阴影，松手时原子替换为连接后的积木。底层 connect 直接拼接，不展示阴影。
+高层连接接近目标时，语句积木展示原生 insertion marker，reporter/boolean 对已有 shadow 或空输入槽展示 replacement glow。拆开后尚未离开原连接范围时也保留预览；所有拖动积木使用原生拖动表面的投影参数。底层 connect 直接拼接，不展示预览。
 
 高层 selectTarget 自动滚动角色列表、移动鼠标并点击目标，松手后才切换工作区和工具箱；选择当前 target 不产生动作。direct.selectTarget 立即切换。浏览器播放、跳转和视频导出共享相同的布局和轨道。
 

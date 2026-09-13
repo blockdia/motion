@@ -76,7 +76,7 @@ export async function createAdapter(options: {
       ),
       randomSeed: 0x4d6f7469,
       browser: '',
-      protocol: 8,
+      protocol: 9,
     },
   };
   const manifest: Manifest = {
@@ -117,6 +117,7 @@ export async function createAdapter(options: {
       step: string,
       editing?: { id: string; name: string; text: string; preeditStart?: number },
       markerId?: string,
+      dropdown?: { id: string; name: string },
     ): Promise<string> {
       if (disposed) fail('LIFECYCLE', step, 'Preparation session disposed');
       if (descendants(def).some((b) => b.mutation))
@@ -130,22 +131,23 @@ export async function createAdapter(options: {
         hash(
           JSON.stringify(
             canonical({
-              protocol: 8,
+              protocol: 9,
               targetId,
               source,
               locale: manifest.locale,
               definition: def,
               editing,
               markerId,
+              dropdown,
             }),
           ),
         ).slice(0, 24);
       if (!manifest.resources[key]) {
         try {
           const result = (await page.evaluate(
-            ({ key, def, editing, markerId }) =>
-              (window as any).prepareBlock(key, def, editing, markerId),
-            { key, def, editing, markerId },
+            ({ key, def, editing, markerId, dropdown }) =>
+              (window as any).prepareBlock(key, def, editing, markerId, dropdown),
+            { key, def, editing, markerId, dropdown },
           )) as { resource: Resource; theme: string };
           manifest.resources[key] = result.resource;
           manifest.theme = result.theme + imeTheme;
@@ -207,6 +209,8 @@ export async function createAdapter(options: {
           return fail('CAPABILITY', step, String(error));
         }
       },
+      prepareDropdown: (def, target, step) =>
+        prepareResource(def, step, undefined, undefined, target),
       preparePreview: (def, id, step) => prepareResource(def, step, undefined, id),
       prepare: (def: BlockDefinition, step: string) => prepareResource(def, step),
       prepareInput: (

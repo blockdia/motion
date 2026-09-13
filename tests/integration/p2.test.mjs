@@ -19,10 +19,19 @@ test('P2 real Blockly structural editing, shadow restoration, overlays and deter
     assert.deepEqual(await compile(JSON.parse(JSON.stringify(tutorial)), adapter), scene);
     assert.equal(Object.keys(adapter.manifest.resources).length, count);
     const previews = scene.tracks.filter((t) => t.kind === 'preview');
-    assert.equal(previews.length, 2);
+    assert.equal(previews.length, 5);
+    assert.ok(
+      previews.some((p) => /feGaussianBlur/.test(scene.manifest.resources[p.asset].content)),
+    );
+    assert.ok(
+      previews.some((p) =>
+        /blocklyInsertionMarker/.test(scene.manifest.resources[p.asset].content),
+      ),
+    );
+    assert.ok(previews.some((p) => p.step.endsWith(':dropdown')));
     for (const preview of previews) {
       const prepared = scene.manifest.resources[preview.asset];
-      assert.match(prepared.content, /fill-opacity="0.2"/);
+      assert.ok(prepared.content);
       const middle = evaluate((preview.start + preview.end) / 2, scene);
       assert.equal(middle.nodes.find((n) => n.id === preview.id).asset, preview.asset);
       assert.notEqual(
@@ -136,7 +145,7 @@ test('P2 real Blockly structural editing, shadow restoration, overlays and deter
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await page.goto(server.url);
     const keyTimes = scene.tracks
-      .filter((t) => t.kind === 'overlay' || t.kind === 'input')
+      .filter((t) => t.kind === 'overlay' || t.kind === 'input' || t.kind === 'preview')
       .map((t) => (t.start + t.end) / 2);
     const connected = scene.events.find((e) =>
       e.nodes?.some((n) => {

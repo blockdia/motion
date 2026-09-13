@@ -37,7 +37,14 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
   const s = evaluate(time, compiled),
     m = compiled.manifest,
     scale = m.layout.blockScale;
-  const node = (asset: string, x: number, y: number, opacity = 1, prefix = 'node') => {
+  const node = (
+    asset: string,
+    x: number,
+    y: number,
+    opacity = 1,
+    prefix = 'node',
+    dragging = false,
+  ) => {
     const resource = m.resources[asset];
     if (!resource) fail('RESOURCE', 'render', `Missing resource ${asset}`);
     // Resources can occur in both toolbox and workspace. Namespace every instance.
@@ -45,7 +52,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
       .replace(/(?<=\s)id="([^"]+)"/g, (_, id: string) => `id="${prefix}-${id}"`)
       .replace(/url\(#([^)]+)\)/g, (_, id: string) => `url(#${prefix}-${id})`)
       .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${prefix}-${id}`);
-    return `<g opacity="${opacity}" transform="translate(${x} ${y}) scale(${scale})">${content}</g>`;
+    return `<g opacity="${opacity}" transform="translate(${x} ${y}) scale(${scale})">${dragging ? `<defs><filter id="${prefix}-shadow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="6"/><feComponentTransfer result="offsetBlur"><feFuncA type="linear" slope=".3"/></feComponentTransfer><feComposite in="SourceGraphic" in2="offsetBlur" operator="over"/></filter></defs><g filter="url(#${prefix}-shadow)">${content}</g>` : content}</g>`;
   };
   const catalog = m.targets[s.targetId];
   if (!catalog) fail('TARGET', 'render', `Missing target catalog ${s.targetId}`);
@@ -70,7 +77,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
         );
         const edge = a.above ? p.y + p.height : p.y;
         const direction = a.above ? 1 : -1;
-        return `<g data-overlay="menu" clip-path="url(#workspace)"><rect ${rect(p)} rx="4" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>${a.context ? '' : `<path d="M${tip - 8} ${edge} L${tip} ${edge + direction * 9} L${tip + 8} ${edge}" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>`}${a.options.map((option, i) => `<g>${a.hovered === i ? `<rect x="${p.x + 2}" y="${p.y + 4 + i * a.rowHeight}" width="${p.width - 4}" height="${a.rowHeight}" rx="2" fill="${a.context ? '#e8f0fe' : escape(a.stroke)}"/>` : ''}${a.checked === i ? `<path d="M${p.x + 12} ${p.y + 4 + (i + 0.5) * a.rowHeight} l3 4 l7 -10" fill="none" stroke="#172b4d" stroke-width="2"/>` : ''}<text x="${p.x + (a.context ? 12 : 30)}" y="${p.y + 4 + (i + 0.5) * a.rowHeight + a.fontSize * 0.35}" font-size="${a.fontSize}" font-weight="${a.context ? 'normal' : 'bold'}" fill="${a.context ? (a.enabled?.[i] === false ? '#aaa' : '#29292d') : 'white'}">${escape(option[0])}</text></g>`).join('')}</g>`;
+        return `<g data-overlay="menu" clip-path="url(#workspace)"><rect ${rect(p)} rx="4" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>${a.context ? '' : `<path d="M${tip - 8} ${edge} L${tip} ${edge + direction * 9} L${tip + 8} ${edge}" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>`}${a.options.map((option, i) => `<g>${a.hovered === i ? `<rect x="${p.x + 2}" y="${p.y + 4 + i * a.rowHeight}" width="${p.width - 4}" height="${a.rowHeight}" rx="2" fill="${a.context ? '#e8f0fe' : 'rgba(0,0,0,.2)'}"/>` : ''}${a.checked === i ? `<path d="M${p.x + 12} ${p.y + 4 + (i + 0.5) * a.rowHeight} l3 4 l7 -10" fill="none" stroke="#172b4d" stroke-width="2"/>` : ''}<text x="${p.x + (a.context ? 12 : 30)}" y="${p.y + 4 + (i + 0.5) * a.rowHeight + a.fontSize * 0.35}" font-size="${a.fontSize}" font-weight="${a.context ? 'normal' : 'bold'}" fill="${a.context ? (a.enabled?.[i] === false ? '#aaa' : '#29292d') : 'white'}">${escape(option[0])}</text></g>`).join('')}</g>`;
       }
       if (o.ime) {
         const view = m.layout.workspace;
@@ -147,7 +154,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
     `<rect x="${box.x + box.width - 11}" y="${box.y + (s.toolbox.scroll / Math.max(catalog.contentHeight, box.height)) * box.height}" width="6" height="${Math.max(20, box.height * Math.min(1, box.height / catalog.contentHeight))}" rx="3" fill="#ccc"/>` +
     `<g clip-path="url(#editor)">${s.nodes
       .filter((n) => n.dragging)
-      .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`))
+      .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`, true))
       .join('')}</g>` +
     (s.input ? inputSvg(s.input) : '') +
     overlays +

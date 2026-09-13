@@ -39,6 +39,7 @@ window.startPreparation = async function (project) {
     const box = original.getBBox(),
       xy = root.getRelativeToSurfaceXY();
     const clone = original.cloneNode(true);
+    let replacementFilter;
     clone.removeAttribute('transform');
     const anchors = {};
     for (const block of root.getDescendants()) {
@@ -93,6 +94,14 @@ window.startPreparation = async function (project) {
         css = getComputedStyle(source);
       if (['foreignObject', 'filter', 'script'].includes(el.localName))
         throw Error(`Unsupported SVG ${el.localName}`);
+      const nativeFilter = el.getAttribute('filter');
+      el.removeAttribute('filter');
+      if (nativeFilter) {
+        const id = root.workspace.options.replacementGlowFilterId;
+        if (nativeFilter !== `url(#${id})`) throw Error('Unsupported native filter');
+        replacementFilter = document.getElementById(id).cloneNode(true);
+        replacementFilter.id = key + '-replacement';
+      }
       el.removeAttribute('style');
       for (const attr of [...el.attributes]) {
         if (attr.name.startsWith('on')) throw Error('Event attributes are unsupported');
@@ -108,7 +117,7 @@ window.startPreparation = async function (project) {
       }
       for (const prop of ['stroke-width', 'fill-opacity', 'stroke-opacity', 'opacity'])
         el.setAttribute(prop, css.getPropertyValue(prop));
-      el.removeAttribute('filter');
+      if (nativeFilter) el.setAttribute('filter', `url(#${key}-replacement)`);
       if (el.localName === 'text') {
         el.setAttribute('font-family', 'Motion Sans');
         el.setAttribute('font-size', '16');
@@ -123,6 +132,11 @@ window.startPreparation = async function (project) {
         el.removeAttribute('href');
         el.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', data);
       }
+    }
+    if (replacementFilter) {
+      const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.append(replacementFilter);
+      clone.prepend(defs);
     }
     const content = new XMLSerializer().serializeToString(clone);
     resources[key] = {
@@ -271,7 +285,7 @@ window.startPreparation = async function (project) {
       ws.clear();
     }
   };
-  window.prepareBlock = async (key, def, editing, markerId) => {
+  window.prepareBlock = async (key, def, editing, markerId, dropdown) => {
     seedWorkspace(ws, currentTarget);
     try {
       function xmlFor(def, tag = 'block') {
@@ -304,15 +318,23 @@ window.startPreparation = async function (project) {
         const connection = source.outputConnection || source.previousConnection;
         const parent = connection?.targetConnection;
         if (!parent) throw Error('CAPABILITY: Missing insertion parent');
-        let previewId = markerId + ':preview';
-        while (ws.getBlockById(previewId)) previewId += ':preview';
-        const marker = ws.newBlock(source.type, previewId);
-        marker.setInsertionMarker(true, source.width);
-        marker.initSvg();
-        source.dispose(false, false);
-        marker.render();
-        parent.connect(marker.outputConnection || marker.previousConnection);
+        if (source.outputConnection) {
+          source.dispose(false, false);
+          root.render();
+          if (parent.targetBlock()) parent.targetBlock().highlightForReplacement(true);
+          else parent.sourceBlock_.highlightShapeForInput(parent, true);
+        } else {
+          let previewId = markerId + ':preview';
+          while (ws.getBlockById(previewId)) previewId += ':preview';
+          const marker = ws.newBlock(source.type, previewId);
+          marker.setInsertionMarker(true, source.width);
+          marker.initSvg();
+          source.dispose(false, false);
+          marker.render();
+          parent.connect(marker.outputConnection || marker.previousConnection);
+        }
       }
+      if (dropdown) ws.getBlockById(dropdown.id).getField(dropdown.name).showEditor_();
       if (editing) {
         const field = ws.getBlockById(editing.id)?.getField(editing.name);
         if (!field) throw Error(`Missing editing field ${editing.id}.${editing.name}`);
@@ -377,6 +399,7 @@ window.startPreparation = async function (project) {
       };
     } finally {
       // Widget disposal commits its temporary text before destroying the preparation workspace.
+      B.DropDownDiv.hideWithoutAnimation();
       B.WidgetDiv.hide(true);
       ws.clear();
     }

@@ -375,6 +375,7 @@ export interface PreparationAdapter {
   manifest: Manifest;
   selectTarget(targetId: string): Promise<void>;
   prepare(block: BlockDefinition, step: string): Promise<string>;
+  prepareDropdown?(block: BlockDefinition, target: FieldTarget, step: string): Promise<string>;
   preparePreview?(block: BlockDefinition, id: string, step: string): Promise<string>;
   prepareContextMenu?(block: BlockDefinition, id: string, step: string): Promise<PreparedMenu>;
   deleteBlock?(
@@ -428,8 +429,12 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
         pressed: track.pressed,
         ...(track.button ? { button: track.button } : {}),
       };
-    else if (track.kind === 'scroll') state.toolbox.scroll = mix(track.from, track.to, p);
-    else if (track.kind === 'targetScroll') state.targetScroll = mix(track.from, track.to, p);
+    else if (track.kind === 'scroll') {
+      // Pinned Flyout.stepScrollAnimation: milliseconds / 60 + 1, fraction .3.
+      const remaining =
+        (track.to - track.from) * Math.pow(0.3, ((t - track.start) * 1000) / 60 + 1);
+      state.toolbox.scroll = Math.abs(remaining) < 1 ? track.to : track.to - remaining;
+    } else if (track.kind === 'targetScroll') state.targetScroll = mix(track.from, track.to, p);
     else if (track.kind === 'preview') {
       const node = nodes.get(track.id);
       if (!node) fail('TARGET', track.step, 'Missing preview parent');
@@ -467,6 +472,20 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
         });
       }
     }
+  }
+  for (const overlay of state.overlays) {
+    if (!overlay.menu) continue;
+    const menu = overlay.menu,
+      panel = menu.panel;
+    const row = Math.floor((state.cursor.y - panel.y - 4) / menu.rowHeight);
+    menu.hovered =
+      state.cursor.x >= panel.x + 2 &&
+      state.cursor.x < panel.x + panel.width - 2 &&
+      row >= 0 &&
+      row < menu.options.length &&
+      menu.enabled?.[row] !== false
+        ? row
+        : -1;
   }
   state.nodes = [...nodes.values()].filter((n) => n.targetId === state.targetId);
   for (const node of state.nodes)
