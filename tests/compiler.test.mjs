@@ -765,3 +765,158 @@ test('P2 splits a next subtree, deletes it, merges independent branches and keep
     /PARALLEL_CONFLICT/,
   );
 });
+
+test('curved cursor keeps drag anchors and exact endpoints, composes click effects, and seeks deterministically', async () => {
+  const scene = await compile(
+    spec([
+      {
+        op: 'dragFromToolbox',
+        entry: 'events.event_whenflagclicked.4758c63ad4a847ba',
+        id: 'hat',
+        to: slot('main'),
+        duration: 1,
+      },
+    ]),
+    await setup(),
+  );
+  const original = structuredClone(scene);
+  const track = scene.tracks.find((t) => t.kind === 'cursor' && t.pressed);
+  const nodeTrack = scene.tracks.find((t) => t.kind === 'node' && t.step === track.step);
+  const options = { cursorMotion: 'curve', cursorClickEffect: 'shrink' };
+  const mid = (track.start + track.end) / 2;
+  const straight = evaluate(mid, scene),
+    curved = evaluate(mid, scene, options);
+  assert.deepEqual(evaluate(mid, scene, { cursorMotion: 'linear' }), straight);
+  assert.ok(
+    Math.hypot(curved.cursor.x - straight.cursor.x, curved.cursor.y - straight.cursor.y) > 5,
+  );
+  assert.ok(Math.abs(curved.cursor.rotation) > 1);
+  const frames = Array.from({ length: 101 }, (_, i) => {
+    const time = track.start + ((track.end - track.start) * i) / 100;
+    const state = evaluate(time, scene, options);
+    if (i < 100) {
+      const node = state.nodes.find((n) => n.id === nodeTrack.id);
+      assert.ok(Math.abs(state.cursor.x - node.x - (track.from.x - nodeTrack.from.x)) < 1e-8);
+      assert.ok(Math.abs(state.cursor.y - node.y - (track.from.y - nodeTrack.from.y)) < 1e-8);
+    }
+    return state;
+  });
+  assert.equal(frames[0].cursor.x, track.from.x);
+  assert.equal(frames[0].cursor.y, track.from.y);
+  assert.equal(frames[0].cursor.rotation, 0);
+  assert.equal(frames[100].cursor.x, track.to.x);
+  assert.equal(frames[100].cursor.y, track.to.y);
+  assert.equal(frames[100].cursor.rotation ?? 0, 0);
+  assert.ok(Math.abs(frames[99].cursor.rotation) < 2);
+  for (let i = frames.length - 1; i >= 0; i -= 3)
+    assert.deepEqual(evaluate(frames[i].time, scene, options), frames[i]);
+  const svg = frameSvg(mid, scene, 'curve', undefined, options);
+  assert.match(svg, /rotate\([^)]+\) scale\(0.75\)/);
+  assert.doesNotMatch(svg, /data-cursor-click-effect="circle"/);
+  assert.match(
+    frameSvg(mid, scene, 'curve', undefined, { cursorMotion: 'curve' }),
+    /data-cursor-click-effect="circle"/,
+  );
+  assert.deepEqual(scene, original);
+  assert.throws(() => evaluate(mid, scene, { cursorMotion: 'invalid' }), /UNSUPPORTED/);
+});
+
+test('curved motion handles all directions, zero-distance clicks, and menu hover at the curved position', async () => {
+  const base = await compile(spec([{ op: 'wait', duration: 1 }]), await setup());
+  for (const to of [
+    { x: 600, y: 300 },
+    { x: 300, y: 300 },
+    { x: 450, y: 150 },
+    { x: 450, y: 450 },
+    { x: 450, y: 300 },
+  ]) {
+    const scene = structuredClone(base);
+    scene.tracks = [
+      {
+        kind: 'cursor',
+        from: { x: 450, y: 300 },
+        to,
+        start: 0,
+        end: 1,
+        step: 'probe',
+        easing: 'linear',
+        pressed: true,
+      },
+    ];
+    let previous = 0;
+    for (let i = 0; i < 100; i++) {
+      const { cursor } = evaluate(i / 100, scene, { cursorMotion: 'curve' });
+      assert.ok([cursor.x, cursor.y, cursor.rotation].every(Number.isFinite));
+      assert.ok(Math.abs(cursor.rotation - previous) < 45, 'no rotation discontinuities');
+      previous = cursor.rotation;
+      if (to.x === 450 && to.y === 300)
+        assert.deepEqual(cursor, { x: 450, y: 300, pressed: true, rotation: 0 });
+    }
+  }
+  const sample = (distance, pressed = false, duration = 1) => {
+    const scene = structuredClone(base);
+    scene.tracks = [
+      {
+        kind: 'cursor',
+        from: { x: 450, y: 300 },
+        to: { x: 450 + distance, y: 300 },
+        start: 0,
+        end: duration,
+        step: 'distance',
+        easing: 'linear',
+        pressed,
+      },
+    ];
+    return evaluate(duration / 2, scene, { cursorMotion: 'curve' }).cursor;
+  };
+  assert.ok(Math.abs(sample(20).x - 460) < 1e-8);
+  assert.ok(Math.abs(sample(20).y - 300) < 1e-8);
+  assert.equal(sample(20).rotation, 0);
+  assert.ok(Math.abs(sample(60).rotation) < 1);
+  const medium = sample(160),
+    long = sample(400),
+    drag = sample(400, true);
+  assert.ok(Math.abs(medium.rotation) < 15);
+  assert.ok(Math.abs(long.rotation) > Math.abs(medium.rotation));
+  assert.ok(Math.abs(long.rotation) <= 60);
+  assert.ok(Math.abs(drag.rotation) <= 24);
+  assert.ok(Math.abs(drag.y - 300) < Math.abs(long.y - 300));
+  assert.ok(Math.abs(sample(400, false, 0.1).rotation) < Math.abs(long.rotation));
+  for (const boundary of [24, 48, 320, 400]) {
+    const before = sample(boundary - 0.001),
+      after = sample(boundary + 0.001);
+    assert.ok(Math.abs(before.y - after.y) < 0.01);
+    assert.ok(Math.abs(before.rotation - after.rotation) < 0.01);
+  }
+  const scene = structuredClone(base);
+  scene.tracks = [
+    {
+      kind: 'cursor',
+      from: { x: 400, y: 300 },
+      to: { x: 700, y: 300 },
+      start: 0,
+      end: 1,
+      step: 'menu',
+      easing: 'linear',
+      pressed: false,
+    },
+  ];
+  const { cursor } = evaluate(0.5, scene, { cursorMotion: 'curve' });
+  scene.tracks.push({
+    kind: 'overlay',
+    start: 0,
+    end: 1,
+    step: 'menu',
+    easing: 'linear',
+    bounds: { x: 400, y: 300, width: 20, height: 20 },
+    text: '',
+    menu: {
+      panel: { x: cursor.x - 15, y: cursor.y - 10, width: 30, height: 28 },
+      rowHeight: 20,
+      options: [['Item', 'item']],
+      hovered: -1,
+    },
+  });
+  assert.equal(evaluate(0.5, scene, { cursorMotion: 'curve' }).overlays[0].menu.hovered, 0);
+  assert.equal(evaluate(0.5, scene).overlays[0].menu.hovered, -1);
+});

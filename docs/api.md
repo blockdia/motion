@@ -75,3 +75,28 @@ player.dispose(); // 切换场景或卸载前释放 RAF 与监听器
 ```
 
 `createAdapter` 来自 asset-builder，`compile` 来自 authoring，`assertResources/evaluate` 来自 core，`frameSvg/mountPlayer` 来自 renderer-browser，`rasterFrame/exportVideo` 来自 renderer-video。包名前缀均为 `@blockdia-motion/`。渲染前需加载 manifest 指定字体；playground 已校验字体摘要。
+
+鼠标点按效果默认为 `circle`（显示圆圈），也可选 `shrink`（按下时缩至 75%，松开恢复；拖动期间保持缩小）。缩放以箭头尖端为中心，不改变点击位置。左右键均适用。
+
+```ts
+const player = mountPlayer(host, scene, { cursorClickEffect: 'shrink' });
+player.setCursorClickEffect('circle'); // 立即切换，不改变播放时间或视角
+const svg = frameSvg(2.5, scene, 'motion', undefined, { cursorClickEffect: 'shrink' });
+const png = rasterFrame(scene, 2.5, fontPath, { cursorClickEffect: 'shrink' });
+await exportVideo(scene, { output, font: fontPath, cursorClickEffect: 'shrink' });
+```
+
+Playground 顶部的“鼠标点按效果”可直接切换，重新加载或切换教程时保留当前选择。
+
+鼠标运动模式 `cursorMotion` 默认为 `linear`（直线运动），可选 `curve`（三次贝塞尔曲线 + 随路径转向，到达时回正）。曲线以参考示例为基础，按距离平滑增加弧度与倾斜：24 像素以内直走，48 像素以内不转向，约 320–400 像素才达到完整效果；短时动作进一步减弱。空手移动最多倾斜 60°，拖拽最多 24°，拖拽弧度降至 45%。保留教程的时长、缓动和精确落点，不采用依赖帧率的弹簧积分。拖动的积木沿同一曲线移动，保持抓取偏移，自身不旋转。原地点按不旋转。
+
+```ts
+const options = { cursorMotion: 'curve', cursorClickEffect: 'shrink' } as const;
+const player = mountPlayer(host, scene, options);
+player.setCursorMotion('linear');
+const snapshot = evaluate(2.5, scene, options); // 含曲线坐标与 cursor.rotation（角度）
+const svg = frameSvg(2.5, scene, 'motion', undefined, options);
+await exportVideo(scene, { output, font: fontPath, ...options });
+```
+
+Playground 的“鼠标运动模式”与点按效果可独立切换，切换教程或重新加载后保留选择；时间跳转与视频逐帧采样产生相同结果。

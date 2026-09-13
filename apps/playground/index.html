@@ -96,6 +96,20 @@
         <option value="en">English</option>
       </select></label
     >
+    <label
+      >鼠标点按效果
+      <select id="cursor-click-effect">
+        <option value="circle">点按显示圆圈</option>
+        <option value="shrink">点按缩小鼠标</option>
+      </select></label
+    >
+    <label
+      >鼠标运动模式
+      <select id="cursor-motion">
+        <option value="linear">直线运动</option>
+        <option value="curve">曲线 + 旋转</option>
+      </select></label
+    >
     <p id="description"></p>
   </header>
   <p id="status" role="status" aria-live="polite"></p>
@@ -109,6 +123,8 @@
     const errorBox = document.querySelector('#error');
     const themePicker = document.querySelector('#theme');
     const localePicker = document.querySelector('#locale');
+    const cursorEffectPicker = document.querySelector('#cursor-click-effect');
+    const cursorMotionPicker = document.querySelector('#cursor-motion');
     const examples = {
       '/artifacts/p3/scene.zh-CN.light.json': {
         description:
@@ -197,6 +213,8 @@
         if (digest !== compiled.manifest?.source?.fontSha256)
           throw Error('字体与教程资源不匹配，请使用准备素材时的 MOTION_FONT');
         player = window.player = mountPlayer(host, compiled, {
+          cursorClickEffect: cursorEffectPicker.value,
+          cursorMotion: cursorMotionPicker.value,
           async loadVariant(options, signal) {
             if (!example?.variants) throw Error('此示例未准备外观变体，请选择 P3 示例');
             const response = await fetch(
@@ -238,6 +256,12 @@
         localePicker.value = currentPlayer.appearance.locale;
       }
     }
+    cursorMotionPicker.addEventListener('change', () => {
+      player?.setCursorMotion(cursorMotionPicker.value);
+    });
+    cursorEffectPicker.addEventListener('change', () => {
+      player?.setCursorClickEffect(cursorEffectPicker.value);
+    });
     themePicker.addEventListener('change', changeAppearance);
     localePicker.addEventListener('change', changeAppearance);
     window.addEventListener('pagehide', () => {

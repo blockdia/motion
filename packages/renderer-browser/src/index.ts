@@ -4,6 +4,8 @@ import {
   evaluate,
   fail,
   type CompiledScene,
+  type CursorMotion,
+  type EvaluationOptions,
   type Rect,
   type Snapshot,
 } from '@blockdia-motion/core';
@@ -37,12 +39,24 @@ export interface WorkspaceView {
   y: number;
   zoom: number;
 }
+export type { CursorMotion } from '@blockdia-motion/core';
+export type CursorClickEffect = 'circle' | 'shrink';
+export interface RenderOptions extends EvaluationOptions {
+  cursorClickEffect?: CursorClickEffect;
+}
+function checkCursorClickEffect(effect: CursorClickEffect) {
+  if (effect !== 'circle' && effect !== 'shrink')
+    fail('UNSUPPORTED', 'render', 'Unknown cursor click effect');
+}
 export function frameSvg(
   time: number,
   compiled: CompiledScene,
   namespace = 'motion',
   view: WorkspaceView = { x: 0, y: 0, zoom: 1 },
+  options: RenderOptions = {},
 ): string {
+  const cursorClickEffect = options.cursorClickEffect ?? 'circle';
+  checkCursorClickEffect(cursorClickEffect);
   if (
     ![view.x, view.y, view.zoom].every(Number.isFinite) ||
     view.zoom < 0.3 / compiled.manifest.layout.blockScale ||
@@ -51,7 +65,7 @@ export function frameSvg(
     fail('VIEW', 'render', 'Invalid workspace view');
   if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(namespace))
     fail('NAMESPACE', 'render', 'Invalid SVG namespace');
-  const s = evaluate(time, compiled),
+  const s = evaluate(time, compiled, options),
     m = compiled.manifest,
     scale = m.layout.blockScale;
   const node = (
@@ -198,10 +212,10 @@ export function frameSvg(
     (s.input ? viewed(inputSvg(s.input)) : '') +
     viewed(overlays) +
     ((content: string) => (cursorInWorkspace ? viewed(content, false) : content))(
-      (s.cursor.pressed
-        ? `<circle cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="${s.cursor.button === 'right' ? '#4c97ff' : '#ff4c4c'}" opacity=".18"/>`
+      (s.cursor.pressed && cursorClickEffect === 'circle'
+        ? `<circle data-cursor-click-effect="circle" cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="${s.cursor.button === 'right' ? '#4c97ff' : '#ff4c4c'}" opacity=".18"/>`
         : '') +
-        `<path data-cursor-button="${s.cursor.button ?? 'left'}" transform="translate(${s.cursor.x} ${s.cursor.y})" d="M0 0 L0 23 L6 17 L11 28 L16 25 L11 15 L20 15 Z" fill="#242938" stroke="white" stroke-width="2"/>`,
+        `<path data-cursor-button="${s.cursor.button ?? 'left'}" transform="translate(${s.cursor.x} ${s.cursor.y})${s.cursor.rotation ? ` rotate(${s.cursor.rotation})` : ''}${s.cursor.pressed && cursorClickEffect === 'shrink' ? ' scale(0.75)' : ''}" d="M0 0 L0 23 L6 17 L11 28 L16 25 L11 15 L20 15 Z" fill="#242938" stroke="white" stroke-width="2"/>`,
     );
   const svg = `<svg class="scene-${namespace}" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${m.viewport.width}" height="${m.viewport.height}" viewBox="0 0 ${m.viewport.width} ${m.viewport.height}"><style>${m.theme.replace(
     /([^{}]+)\{/g,
@@ -217,7 +231,7 @@ export function frameSvg(
     .replace(/(href=")#([^"]+)/g, (_, start: string, id: string) => `${start}#${namespace}-${id}`);
 }
 let playerId = 0;
-export interface PlayerOptions {
+export interface PlayerOptions extends RenderOptions {
   loadVariant?: (
     options: { locale: 'zh-CN' | 'en'; theme: 'light' | 'dark' },
     signal: AbortSignal,
@@ -228,6 +242,14 @@ export function mountPlayer(
   initial: CompiledScene | undefined,
   options: PlayerOptions = {},
 ) {
+  let cursorMotion = options.cursorMotion ?? 'linear';
+  const checkCursorMotion = (mode: CursorMotion) => {
+    if (mode !== 'linear' && mode !== 'curve')
+      fail('UNSUPPORTED', 'player', 'Unknown cursor motion');
+  };
+  checkCursorMotion(cursorMotion);
+  let cursorClickEffect = options.cursorClickEffect ?? 'circle';
+  checkCursorClickEffect(cursorClickEffect);
   if (!initial) fail('RESOURCE', 'player', 'Missing scene');
   assertResources(initial);
   let compiled: CompiledScene | undefined = initial;
@@ -252,7 +274,10 @@ export function mountPlayer(
   let pending: AbortController | undefined;
   function render() {
     if (!compiled || disposed) return;
-    frame.innerHTML = frameSvg(time, compiled, namespace, view);
+    frame.innerHTML = frameSvg(time, compiled, namespace, view, {
+      cursorClickEffect,
+      cursorMotion,
+    });
     range.max = String(compiled.duration);
     range.value = String(time);
     output.value = `${time.toFixed(2)} / ${compiled.duration.toFixed(2)} s`;
@@ -476,6 +501,24 @@ export function mountPlayer(
     pause,
     resetView,
     setOptions,
+    setCursorClickEffect(effect: CursorClickEffect) {
+      if (disposed) return;
+      checkCursorClickEffect(effect);
+      cursorClickEffect = effect;
+      render();
+    },
+    setCursorMotion(mode: CursorMotion) {
+      if (disposed) return;
+      checkCursorMotion(mode);
+      cursorMotion = mode;
+      render();
+    },
+    get cursorMotion() {
+      return cursorMotion;
+    },
+    get cursorClickEffect() {
+      return cursorClickEffect;
+    },
     get time() {
       return time;
     },

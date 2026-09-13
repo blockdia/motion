@@ -1,3 +1,5 @@
+import { curvedCursor } from './cursor-motion.js';
+
 export type Point = { x: number; y: number };
 export type Rect = Point & { width: number; height: number };
 export type Ease = 'linear' | 'easeInOut';
@@ -341,6 +343,7 @@ export interface CompiledScene {
   finalTargets: Record<string, BlockDefinition[]>;
 }
 export interface Snapshot extends SceneState {
+  cursor: SceneState['cursor'] & { rotation?: number };
   overlays: Overlay[];
   time: number;
   input: {
@@ -393,7 +396,21 @@ export interface PreparationAdapter {
   ): Promise<string>;
 }
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
-export function evaluate(time: number, scene: CompiledScene): Snapshot {
+export type CursorMotion = 'linear' | 'curve';
+export interface EvaluationOptions {
+  cursorMotion?: CursorMotion;
+}
+export function evaluate(
+  time: number,
+  scene: CompiledScene,
+  options: EvaluationOptions = {},
+): Snapshot {
+  if (
+    options.cursorMotion !== undefined &&
+    options.cursorMotion !== 'linear' &&
+    options.cursorMotion !== 'curve'
+  )
+    fail('UNSUPPORTED', 'evaluate', 'Unknown cursor motion');
   if (!Number.isFinite(time) || time < 0)
     fail('TIME', 'evaluate', 'Time must be finite and nonnegative');
   const t = Math.min(time, scene.duration);
@@ -413,6 +430,7 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
     if (event.cursor) state.cursor = { ...event.cursor };
     if (event.toolbox) state.toolbox = { ...event.toolbox };
   }
+  let activeCursor: Extract<Track, { kind: 'cursor' }> | undefined;
   for (const track of scene.tracks) {
     if (t < track.start || t >= track.end) continue;
     const progress = (t - track.start) / (track.end - track.start);
@@ -424,14 +442,15 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
       n.y = mix(track.from.y, track.to.y, p);
       n.opacity = mix(track.opacityFrom, track.opacityTo, p);
     } else if (track.kind === 'overlay') state.overlays.push(structuredClone(track));
-    else if (track.kind === 'cursor')
+    else if (track.kind === 'cursor') {
+      activeCursor = track;
       state.cursor = {
         x: mix(track.from.x, track.to.x, p),
         y: mix(track.from.y, track.to.y, p),
         pressed: track.pressed,
         ...(track.button ? { button: track.button } : {}),
       };
-    else if (track.kind === 'scroll') {
+    } else if (track.kind === 'scroll') {
       // Pinned Flyout.stepScrollAnimation: milliseconds / 60 + 1, fraction .3.
       const remaining =
         (track.to - track.from) * Math.pow(0.3, ((t - track.start) * 1000) / 60 + 1);
@@ -472,6 +491,38 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
             y: n.y + (bounds.y + bounds.height) * scale,
           },
         });
+      }
+    }
+  }
+  if (options.cursorMotion === 'curve' && activeCursor) {
+    const track = activeCursor;
+    const progress = (t - track.start) / (track.end - track.start);
+    const p = track.easing === 'easeInOut' ? progress * progress * (3 - 2 * progress) : progress;
+    const position = curvedCursor(
+      track.from,
+      track.to,
+      p,
+      progress,
+      track.pressed,
+      track.end - track.start,
+    );
+    const dx = position.x - state.cursor.x,
+      dy = position.y - state.cursor.y;
+    state.cursor = { ...state.cursor, ...position };
+    // Only move the stack attached to this gesture; parallel direct animations
+    // retain their own trajectories and block orientation remains unchanged.
+    for (const nodeTrack of scene.tracks) {
+      if (
+        nodeTrack.kind !== 'node' ||
+        nodeTrack.step !== track.step ||
+        nodeTrack.start !== track.start ||
+        nodeTrack.end !== track.end
+      )
+        continue;
+      const node = nodes.get(nodeTrack.id);
+      if (node?.dragging) {
+        node.x += dx;
+        node.y += dy;
       }
     }
   }

@@ -4,9 +4,14 @@ import { once } from 'node:events';
 import { readFile, rename, rm } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { assertResources, fail, frameCount, type CompiledScene } from '@blockdia-motion/core';
-import { frameSvg } from '@blockdia-motion/renderer-browser';
-export function rasterFrame(scene: CompiledScene, time: number, font: string): Buffer {
-  return new Resvg(frameSvg(time, scene), {
+import { frameSvg, type RenderOptions } from '@blockdia-motion/renderer-browser';
+export function rasterFrame(
+  scene: CompiledScene,
+  time: number,
+  font: string,
+  options: RenderOptions = {},
+): Buffer {
+  return new Resvg(frameSvg(time, scene, 'motion', undefined, options), {
     font: {
       fontFiles: [font],
       loadSystemFonts: false,
@@ -18,7 +23,7 @@ export function rasterFrame(scene: CompiledScene, time: number, font: string): B
 }
 export async function exportVideo(
   scene: CompiledScene,
-  options: { output: string; font: string; fps?: number },
+  options: { output: string; font: string; fps?: number } & RenderOptions,
 ) {
   assertResources(scene);
   if (
@@ -73,7 +78,7 @@ export async function exportVideo(
   try {
     for (let i = 0; i < frames; i++) {
       const before = performance.now(),
-        png = rasterFrame(scene, i / fps, options.font);
+        png = rasterFrame(scene, i / fps, options.font, options);
       compositionMs += performance.now() - before;
       if (!encoder.stdin.write(png))
         await Promise.race([
