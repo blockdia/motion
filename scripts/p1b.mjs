@@ -66,7 +66,7 @@ try {
   });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(server.url + '/apps/playground/index.html');
+  await page.goto(server.url + '/apps/playground/index.html?scene=/artifacts/p1b/scene.json');
   await page.waitForFunction(() => window.ready);
   report.playerHasBlockly = await page.evaluate(() => typeof window.Blockly !== 'undefined');
   assert.equal(report.playerHasBlockly, false);

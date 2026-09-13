@@ -6,4 +6,6 @@
 - Arial Unicode 字体使用本机已有文件，仅用于本地验证，不在仓库内分发。复现报告保存实际字体哈希；其他环境需提供具有相应使用权限且覆盖中文的字体。
 - resvg-js 与 Playwright 的版本固定在 pnpm-lock.yaml，依赖包保留各自许可证。FFmpeg 为外部运行工具，报告记录实际版本。
 
+- @kensio/pinyinjs 1.7.13，来源 [KensioSoftware/pinyinjs](https://github.com/KensioSoftware/pinyinjs)。代码为 Apache-2.0；随包词典包含 CC-CEDICT（CC BY-SA 4.0）、Unihan、jieba 等来源，具体条款见依赖包的 LICENSE 与 NOTICE。用于教程编译的分词、汉字转拼音及拼音候选反查，版本与完整性记录在 pnpm-lock.yaml。
+
 此文件记录素材来源，不变更各上游原有的许可与商标声明。

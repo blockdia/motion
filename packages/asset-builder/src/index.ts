@@ -14,7 +14,7 @@ import {
   type TargetCatalog,
   type ToolboxEntry,
 } from '@blockdia-motion/core';
-import { blocksCommit, guiCommit } from '@blockdia-motion/adapter-turbowarp';
+import { blocksCommit, guiCommit, imeTheme } from '@blockdia-motion/adapter-turbowarp';
 const hash = (data: string | Buffer) => createHash('sha256').update(data).digest('hex');
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -76,7 +76,7 @@ export async function createAdapter(options: {
       ),
       randomSeed: 0x4d6f7469,
       browser: '',
-      protocol: 3,
+      protocol: 6,
     },
   };
   const manifest: Manifest = {
@@ -115,7 +115,7 @@ export async function createAdapter(options: {
     async function prepareResource(
       def: BlockDefinition,
       step: string,
-      editing?: { id: string; name: string; text: string },
+      editing?: { id: string; name: string; text: string; preeditStart?: number },
     ): Promise<string> {
       if (disposed) fail('LIFECYCLE', step, 'Preparation session disposed');
       if (descendants(def).some((b) => b.mutation))
@@ -129,7 +129,7 @@ export async function createAdapter(options: {
         hash(
           JSON.stringify(
             canonical({
-              protocol: 3,
+              protocol: 6,
               targetId,
               source,
               locale: manifest.locale,
@@ -145,7 +145,7 @@ export async function createAdapter(options: {
             { key, def, editing },
           )) as { resource: Resource; theme: string };
           manifest.resources[key] = result.resource;
-          manifest.theme = result.theme;
+          manifest.theme = result.theme + imeTheme;
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           fail(message.includes('CAPABILITY:') ? 'CAPABILITY' : 'BLOCKLY', step, message);
@@ -162,10 +162,24 @@ export async function createAdapter(options: {
         targetId = id;
         await page.evaluate((id) => (window as any).selectPreparationTarget(id), id);
       },
+      async prepareMenu(
+        def: BlockDefinition,
+        target: import('@blockdia-motion/core').FieldTarget,
+        step: string,
+      ): Promise<import('@blockdia-motion/core').PreparedMenu> {
+        try {
+          return await page.evaluate(
+            ({ def, target }) => (window as any).prepareMenu(def, target),
+            { def, target },
+          );
+        } catch (error) {
+          return fail('CAPABILITY', step, String(error));
+        }
+      },
       prepare: (def: BlockDefinition, step: string) => prepareResource(def, step),
       prepareInput: (
         def: BlockDefinition,
-        editing: { id: string; name: string; text: string },
+        editing: { id: string; name: string; text: string; preeditStart?: number },
         step: string,
       ) => prepareResource(def, step, editing),
       async dispose() {
@@ -247,7 +261,7 @@ export async function createAdapter(options: {
         });
       }
       manifest.targets[target.id] = catalog;
-      manifest.theme = extracted.theme;
+      manifest.theme = extracted.theme + imeTheme;
     }
     await adapter.selectTarget(options.project.targets[0]!.id);
     return adapter;

@@ -1,5 +1,6 @@
 import {
   assertResources,
+  inputTextLayout,
   evaluate,
   fail,
   type CompiledScene,
@@ -18,13 +19,7 @@ function inputSvg(input: NonNullable<Snapshot['input']>): string {
   const { appearance: a, origin, scale, selected } = input;
   const b = a.bounds,
     border = a.borderWidth;
-  const innerWidth = Math.max(0, b.width - 2 * a.padding);
-  // Native inputs center short values and scroll to the caret for overflowing text.
-  const textX =
-    a.textWidth <= innerWidth
-      ? b.x + (b.width - a.textWidth) / 2
-      : b.x + b.width - a.padding - a.textWidth;
-  const caret = Math.min(b.x + b.width - a.padding, textX + a.textWidth);
+  const { innerWidth, textX, caret, preeditX } = inputTextLayout(a);
   return `<g clip-path="url(#workspace)"><g transform="translate(${origin.x} ${origin.y}) scale(${scale})" data-input-text="${escape(a.text)}">
     <rect x="${b.x - a.shadowWidth}" y="${b.y - a.shadowWidth}" width="${b.width + a.shadowWidth * 2}" height="${b.height + a.shadowWidth * 2}" rx="${a.radius + a.shadowWidth}" fill="${a.shadowColor}"/>
     <rect x="${b.x + border / 2}" y="${b.y + border / 2}" width="${b.width - border}" height="${b.height - border}" rx="${Math.max(0, a.radius - border / 2)}" fill="${a.fill}" stroke="${a.stroke}" stroke-width="${border}"/>
@@ -32,6 +27,7 @@ function inputSvg(input: NonNullable<Snapshot['input']>): string {
     <g clip-path="url(#input-text)">
     ${selected ? `<rect x="${textX}" y="${b.y + (b.height - a.fontSize * 1.2) / 2}" width="${a.textWidth}" height="${a.fontSize * 1.2}" fill="#b4d5fe"/>` : ''}
     <text x="${textX}" y="${a.baseline}" font-size="${a.fontSize}" font-weight="${a.fontWeight}" fill="${a.textColor}">${escape(a.text)}</text>
+    ${input.preedit ? `<path data-preedit-underline="true" d="M${preeditX} ${a.baseline + 2} H${caret}" stroke="${a.textColor}" stroke-width="1"/>` : ''}
     ${selected ? '' : `<path d="M${caret} ${b.y + (b.height - a.fontSize * 1.2) / 2} v${a.fontSize * 1.2}" stroke="${a.textColor}" stroke-width="1"/>`}
     </g></g></g>`;
 }
@@ -63,6 +59,60 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
   const chrome = m.chrome.replace('<g data-slot="targets"></g>', () =>
     targetPanelSvg(m, s.targetId),
   );
+  const overlays = s.overlays
+    .map((o) => {
+      if (o.menu) {
+        const a = o.menu,
+          p = a.panel;
+        const tip = Math.max(
+          p.x + 12,
+          Math.min(o.bounds.x + o.bounds.width / 2, p.x + p.width - 12),
+        );
+        const edge = a.above ? p.y + p.height : p.y;
+        const direction = a.above ? 1 : -1;
+        return `<g data-overlay="menu" clip-path="url(#workspace)"><rect ${rect(p)} rx="4" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/><path d="M${tip - 8} ${edge} L${tip} ${edge + direction * 9} L${tip + 8} ${edge}" fill="${escape(a.fill)}" stroke="${escape(a.stroke)}"/>${a.options.map((option, i) => `<g>${a.hovered === i ? `<rect x="${p.x + 2}" y="${p.y + 4 + i * a.rowHeight}" width="${p.width - 4}" height="${a.rowHeight}" rx="2" fill="${escape(a.stroke)}"/>` : ''}${a.checked === i ? `<path d="M${p.x + 12} ${p.y + 4 + (i + 0.5) * a.rowHeight} l3 4 l7 -10" fill="none" stroke="#172b4d" stroke-width="2"/>` : ''}<text x="${p.x + 30}" y="${p.y + 4 + (i + 0.5) * a.rowHeight + a.fontSize * 0.35}" font-size="${a.fontSize}" font-weight="bold" fill="white">${escape(option[0])}</text></g>`).join('')}</g>`;
+      }
+      if (o.ime) {
+        const view = m.layout.workspace;
+        const entries = [];
+        // Align the first candidate's text (25px inset) with visible preedit start.
+        const preferredX = (o.imeAnchor?.x ?? o.bounds.x) - 25;
+        const available = Math.min(
+          view.width - 16,
+          view.x + view.width - 8 - Math.max(view.x + 8, preferredX),
+        );
+        let width = 8;
+        for (const candidate of o.ime) {
+          const w = 26 + [...candidate].reduce((n, c) => n + (/[^\x00-\x7f]/.test(c) ? 16 : 8), 0);
+          if (width + w + 28 > available && entries.length) break;
+          entries.push({ text: candidate, x: width, width: w });
+          width += w;
+        }
+        width = Math.min(view.width - 16, width + 28);
+        const x = Math.max(view.x + 8, Math.min(preferredX, view.x + view.width - width - 8));
+        const y =
+          o.bounds.y + o.bounds.height + 38 < view.y + view.height
+            ? o.bounds.y + o.bounds.height + 6
+            : Math.max(view.y + 4, o.bounds.y - 38);
+        return `<g data-overlay="ime" clip-path="url(#workspace)"><rect x="${x}" y="${y}" width="${width}" height="32" rx="16" class="motion-ime-panel"/>${entries.map((e, i) => `${i === 0 ? `<rect x="${x + e.x - 4}" y="${y + 3}" width="${e.width}" height="26" rx="13" class="motion-ime-selected"/>` : ''}<text x="${x + e.x + 2}" y="${y + 21}" font-size="11" class="${i === 0 ? 'motion-ime-selected-label' : 'motion-ime-number'}">${i + 1}</text><text data-ime-candidate="${i}" x="${x + e.x + 17}" y="${y + 22}" font-size="16" class="${i === 0 ? 'motion-ime-selected-label' : 'motion-ime-label'}">${escape(e.text)}</text>`).join('')}<path d="M${x + width - 19} ${y + 14} l4 4 l4 -4" fill="none" class="motion-ime-chevron" stroke-width="2"/></g>`;
+      }
+      const lines = o.text.split('\n');
+      const width = Math.min(
+        m.layout.workspace.width - 16,
+        Math.max(120, ...lines.map((l) => [...l].length * 14 + 20)),
+      );
+      const height = lines.length * 22 + 12;
+      const x = Math.max(
+        m.layout.workspace.x + 8,
+        Math.min(o.bounds.x, m.layout.workspace.x + m.layout.workspace.width - width - 8),
+      );
+      const y =
+        o.bounds.y + o.bounds.height + height + 8 < m.layout.workspace.y + m.layout.workspace.height
+          ? o.bounds.y + o.bounds.height + 8
+          : Math.max(m.layout.workspace.y + 8, o.bounds.y - height - 8);
+      return `<g clip-path="url(#workspace)" data-overlay="true"><rect ${rect(o.bounds)} fill="none" stroke="#ffbf00" stroke-width="3" rx="4"/>${o.text ? `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="4" fill="white" stroke="#c7c7c7"/>${lines.map((line, i) => `<text x="${x + 10}" y="${y + 22 + i * 22}" font-size="14" fill="#575e75">${escape(line)}</text>`).join('')}` : ''}</g>`;
+    })
+    .join('');
   const content =
     (chrome.includes(workspaceSlot)
       ? chrome.replace(workspaceSlot, () => workspace)
@@ -100,6 +150,7 @@ export function frameSvg(time: number, compiled: CompiledScene, namespace = 'mot
       .map((n, i) => node(n.asset, n.x, n.y, n.opacity, `drag${i}`))
       .join('')}</g>` +
     (s.input ? inputSvg(s.input) : '') +
+    overlays +
     (s.cursor.pressed
       ? `<circle cx="${s.cursor.x}" cy="${s.cursor.y}" r="15" fill="#ff4c4c" opacity=".18"/>`
       : '') +

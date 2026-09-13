@@ -46,6 +46,9 @@ importers:
       '@blockdia-motion/core':
         specifier: workspace:*
         version: link:../core
+      '@kensio/pinyinjs':
+        specifier: 1.7.13
+        version: 1.7.13
 
   packages/cli:
     dependencies:
@@ -83,6 +86,11 @@ importers:
         version: 2.6.2
 
 packages:
+
+  '@kensio/pinyinjs@1.7.13':
+    resolution: {integrity: sha512-oUSYhFG5PnHGWrooNt3Jk56URNxitmXA15fFLAiEVVx/xRrygSy3fQEV7D1xJ1uk0g7HJksDrWca0i7/miAnzw==}
+    engines: {node: '>=22.0.0'}
+    hasBin: true
 
   '@resvg/resvg-js-android-arm-eabi@2.6.2':
     resolution: {integrity: sha512-FrJibrAk6v29eabIPgcTUMPXiEz8ssrAk7TXxsiZzww9UTQ1Z5KAbFJs+Z0Ez+VZTYgnE5IQJqBcoSiMebtPHA==}
@@ -182,6 +190,8 @@ packages:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
 
 snapshots:
+
+  '@kensio/pinyinjs@1.7.13': {}
 
   '@resvg/resvg-js-android-arm-eabi@2.6.2':
     optional: true

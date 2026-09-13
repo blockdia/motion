@@ -34,7 +34,36 @@
     output {
       min-width: 120px;
     }
+    .toolbar {
+      max-width: 1244px;
+      margin: auto;
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .toolbar select {
+      max-width: 100%;
+      padding: 8px;
+      font: inherit;
+    }
+    .toolbar p {
+      flex-basis: 100%;
+      margin: 0;
+      font-size: 14px;
+    }
+    #status {
+      max-width: 1244px;
+      margin: 0 auto;
+      padding: 0 18px;
+    }
+    #error:empty,
+    #status:empty {
+      display: none;
+    }
     #error {
+      overflow-wrap: anywhere;
       padding: 20px;
       color: #b72929;
     }
@@ -42,30 +71,109 @@
   <script type="importmap">
     { "imports": { "@blockdia-motion/core": "/packages/core/dist/index.js" } }
   </script>
-  <main id="player"></main>
+  <header class="toolbar">
+    <label for="tutorial">教程示例</label>
+    <select id="tutorial">
+      <option value="/artifacts/p2/scene.json">P2 · 常规代码编辑</option>
+      <option value="/artifacts/p1b/scene.json">基础编辑</option>
+      <option value="/artifacts/p1c/scene.json">多角色与完整工具箱</option>
+    </select>
+    <button id="reload" type="button">重新加载</button>
+    <p id="description"></p>
+  </header>
+  <p id="status" role="status" aria-live="polite"></p>
+  <main id="player" aria-label="教程播放器" aria-busy="true"></main>
   <p id="error" role="alert"></p>
   <script type="module">
     import { mountPlayer } from '/packages/renderer-browser/dist/index.js';
-    try {
-      const url = new URLSearchParams(location.search).get('scene') || '/artifacts/p1b/scene.json';
-      const response = await fetch(url);
-      if (!response.ok) throw Error(`无法读取教程：${response.status}`);
-      const compiled = await response.json();
-      const fontResponse = await fetch('/font.ttf');
-      if (!fontResponse.ok) throw Error('无法读取教程字体');
-      const bytes = await fontResponse.arrayBuffer();
+    const picker = document.querySelector('#tutorial');
+    const host = document.querySelector('#player');
+    const status = document.querySelector('#status');
+    const errorBox = document.querySelector('#error');
+    const examples = {
+      '/artifacts/p2/scene.json': {
+        description: '容器连接、拆分与删除、长文本输入、模拟输入法、字段菜单和高亮标注。',
+        source: 'structural-editing',
+        output: 'p2',
+      },
+      '/artifacts/p1b/scene.json': {
+        description: '从工具箱拖出积木、连接、修改参数与粘贴。',
+        source: 'basic-editing',
+        output: 'p1b',
+      },
+      '/artifacts/p1c/scene.json': {
+        description: '切换舞台与角色，浏览各自的完整工具箱和局部数据。',
+        command: 'pnpm p1c',
+      },
+    };
+    const initialUrl = new URLSearchParams(location.search).get('scene') || picker.value;
+    if (!Object.hasOwn(examples, initialUrl)) {
+      picker.add(new Option('自定义教程', initialUrl));
+    }
+    picker.value = initialUrl;
+    let controller;
+    let player;
+    let generation = 0;
+    let loadedFont;
+    async function fontData() {
+      if (loadedFont) return loadedFont;
+      const response = await fetch('/font.ttf');
+      if (!response.ok) throw Error('无法读取教程字体');
+      const bytes = await response.arrayBuffer();
       const digest = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (n) =>
         n.toString(16).padStart(2, '0'),
       ).join('');
-      if (digest !== compiled.manifest.source.fontSha256)
-        throw Error('字体与教程资源不匹配，请使用准备素材时的 MOTION_FONT');
       const font = await new FontFace('Motion Sans', bytes).load();
       document.fonts.add(font);
-      window.player = mountPlayer(document.querySelector('#player'), compiled);
-      window.renderAt = (time) => window.player.seek(time);
-      window.ready = true;
-    } catch (error) {
-      document.querySelector('#error').textContent = error.message;
+      return (loadedFont = { digest });
     }
+    async function loadScene(url) {
+      const current = ++generation;
+      controller?.abort();
+      controller = new AbortController();
+      window.ready = false;
+      player?.dispose();
+      player = window.player = undefined;
+      host.replaceChildren();
+      host.setAttribute('aria-busy', 'true');
+      errorBox.textContent = '';
+      status.textContent = '正在加载教程…';
+      const example = Object.hasOwn(examples, url) ? examples[url] : undefined;
+      document.querySelector('#description').textContent =
+        example?.description || '预览指定的已编译教程。';
+      try {
+        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
+        if (!response.ok) {
+          const command =
+            example?.command ||
+            (example?.source
+              ? `pnpm build && pnpm motion compile examples/${example.source}/tutorial.ts artifacts/${example.output}/scene.json`
+              : '请检查 scene 参数指定的地址');
+          throw Error(`无法读取教程（${response.status}）。${command}`);
+        }
+        const compiled = await response.json();
+        const { digest } = await fontData();
+        if (current !== generation) return;
+        if (digest !== compiled.manifest?.source?.fontSha256)
+          throw Error('字体与教程资源不匹配，请使用准备素材时的 MOTION_FONT');
+        player = window.player = mountPlayer(host, compiled);
+        window.ready = true;
+        const locationUrl = new URL(location.href);
+        locationUrl.searchParams.set('scene', url);
+        history.replaceState(null, '', locationUrl);
+        status.textContent = '';
+      } catch (error) {
+        if (current !== generation) return;
+        host.replaceChildren();
+        errorBox.textContent = error.message;
+        status.textContent = '';
+      } finally {
+        if (current === generation) host.setAttribute('aria-busy', 'false');
+      }
+    }
+    window.renderAt = (time) => window.player?.seek(time);
+    picker.addEventListener('change', () => loadScene(picker.value));
+    document.querySelector('#reload').addEventListener('click', () => loadScene(picker.value));
+    await loadScene(initialUrl);
   </script>
 </html>

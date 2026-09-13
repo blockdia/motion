@@ -10,6 +10,7 @@
     }
   },
   "dependencies": {
-    "@blockdia-motion/core": "workspace:*"
+    "@blockdia-motion/core": "workspace:*",
+    "@kensio/pinyinjs": "1.7.13"
   }
 }

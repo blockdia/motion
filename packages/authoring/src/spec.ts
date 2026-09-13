@@ -30,7 +30,6 @@ function target(value: unknown, path: string, field = false) {
     string(o.id, path);
   } else if (o.kind === 'connection') {
     string(o.id, path);
-    if (o.name !== 'next') fail('UNSUPPORTED', path, 'P1b supports next connections');
   } else if (o.kind !== 'workspaceSlot' || o.id !== undefined)
     fail('SCHEMA', path, 'Expected workspaceSlot or connection');
 }
@@ -52,10 +51,8 @@ function block(value: unknown, path: string) {
       fail('SCHEMA', path, 'Expected inputs object');
     for (const [k, v] of Object.entries(o.inputs)) {
       const i = object(v, path, ['shadow', 'block']);
-      // Replacing a shadow is P2; reject instead of losing one of the definitions.
-      if (Object.keys(i).length !== 1)
-        fail('UNSUPPORTED', path, 'Each P1b input requires exactly one shadow or block');
-      block(i.shadow ?? i.block, `${path}.inputs.${k}`);
+      if (!Object.keys(i).length) fail('SCHEMA', path, 'Input requires shadow or block');
+      for (const [kind, child] of Object.entries(i)) block(child, `${path}.inputs.${k}.${kind}`);
     }
   }
   if (o.mutation !== undefined) string(o.mutation, path + '.mutation');
@@ -71,6 +68,12 @@ function step(value: unknown, path: string) {
     dragFromToolbox: ['entry', 'id', 'to', 'duration', 'easing'],
     create: ['blocks', 'to', 'duration', 'easing'],
     paste: ['blocks', 'to', 'duration', 'easing'],
+    split: ['id', 'to', 'duration', 'easing'],
+    delete: ['id', 'duration'],
+    highlight: ['id', 'duration'],
+    annotate: ['id', 'text', 'duration'],
+    setField: ['target', 'value', 'duration'],
+    choose: ['target', 'value', 'duration'],
     move: ['id', 'to', 'duration', 'easing'],
     connect: ['id', 'to', 'duration', 'easing'],
     type: ['target', 'value', 'duration', 'easing'],
@@ -93,7 +96,10 @@ function step(value: unknown, path: string) {
     o.steps.forEach((s, i) => step(s, `${path}.steps[${i}]`));
   } else if (op === 'wait') {
     if (o.duration === undefined) fail('DURATION', path, 'Wait requires duration');
-  } else if (op === 'type') {
+  } else if (op === 'delete' || op === 'highlight' || op === 'annotate') {
+    string(o.id, path);
+    if (op === 'annotate') string(o.text, path);
+  } else if (op === 'type' || op === 'setField' || op === 'choose') {
     target(o.target, path, true);
     if (typeof o.value !== 'string') fail('SCHEMA', path, 'Expected text value');
   } else if (op === 'selectTarget') string(o.targetId, path);
@@ -254,13 +260,28 @@ export function validateProject(
 export { defaultProject } from '@blockdia-motion/core';
 type Timing = { duration?: number; easing?: Ease };
 export class SceneBuilder {
+  split(id: string, to: Destination, timing: Timing = {}): Step {
+    return { op: 'split', id, to, ...timing };
+  }
+  delete(id: string, duration?: number): Step {
+    return { op: 'delete', id, ...(duration === undefined ? {} : { duration }) };
+  }
+  highlight(id: string, duration?: number): Step {
+    return { op: 'highlight', id, ...(duration === undefined ? {} : { duration }) };
+  }
+  annotate(id: string, text: string, duration?: number): Step {
+    return { op: 'annotate', id, text, ...(duration === undefined ? {} : { duration }) };
+  }
+  setField(target: FieldTarget, value: string, timing: Timing = {}): Step {
+    return { op: 'setField', target, value, ...timing };
+  }
   selectTarget(targetId: string): Step {
     return { op: 'selectTarget', targetId };
   }
   ref(id: string) {
     return {
       id,
-      connection: (name: 'next'): Destination => ({
+      connection: (name: string): Destination => ({
         kind: 'connection',
         id,
         name,
@@ -297,6 +318,9 @@ export class SceneBuilder {
   }
   connect(id: string, to: Destination & { kind: 'connection' }, timing: Timing = {}): Step {
     return { op: 'connect', id, to, ...timing };
+  }
+  choose(target: FieldTarget, value: string, duration?: number): Step {
+    return { op: 'choose', target, value, ...(duration === undefined ? {} : { duration }) };
   }
   type(target: FieldTarget, value: string, timing: Timing = {}): Step {
     return { op: 'type', target, value, ...timing };

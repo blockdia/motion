@@ -45,6 +45,10 @@ window.startPreparation = async function (project) {
       const at = block.getRelativeToSurfaceXY();
       const anchor = {
         opcode: block.type,
+        bounds: (() => {
+          const b = block.svgPath_.getBBox();
+          return { x: at.x - xy.x + b.x, y: at.y - xy.y + b.y, width: b.width, height: b.height };
+        })(),
         x: at.x - xy.x,
         y: at.y - xy.y,
         fields: {},
@@ -172,13 +176,40 @@ window.startPreparation = async function (project) {
       if (!Object.hasOwn(def.fields || {}, f.name))
         throw Error(`Explicit field required: ${def.id}.${f.name}`);
     for (const [name, input] of Object.entries(def.inputs || {})) {
-      const child = instantiate(input.shadow || input.block, !!input.shadow);
+      if (input.shadow && input.block) instantiate(input.shadow, true).dispose(false);
+      const child = instantiate(input.block || input.shadow, !input.block);
       connect(b.getInput(name)?.connection, child.outputConnection || child.previousConnection);
     }
     if (def.next) connect(b.nextConnection, instantiate(def.next).previousConnection);
     b.render();
     return b;
   }
+  window.prepareMenu = (def, target) => {
+    seedWorkspace(ws, currentTarget);
+    try {
+      instantiate(def);
+      const field = ws.getBlockById(target.id)?.getField(target.name);
+      if (!(field instanceof B.FieldDropdown))
+        throw Error('CAPABILITY: choose requires a dropdown');
+      const options = field.getOptions();
+      if (options.some((o) => typeof o[0] !== 'string' || typeof o[1] !== 'string'))
+        throw Error('CAPABILITY: Image menu options are not supported');
+      const source = field.sourceBlock_;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.font = 'bold 13px "Motion Sans"';
+      return {
+        options,
+        width: Math.max(150, ...options.map((o) => ctx.measureText(o[0]).width + 60)),
+        rowHeight: 32,
+        fontSize: 13,
+        fill: (source.isShadow() ? source.getParent() : source).getColour(),
+        stroke: source.getColourTertiary(),
+      };
+    } finally {
+      ws.clear();
+    }
+  };
   window.prepareBlock = async (key, def, editing) => {
     seedWorkspace(ws, currentTarget);
     try {
@@ -250,6 +281,11 @@ window.startPreparation = async function (project) {
             bounds.height / 2 +
             (metrics.fontBoundingBoxAscent - metrics.fontBoundingBoxDescent) / 2,
           textWidth: metrics.width,
+          ...(editing.preeditStart === undefined
+            ? {}
+            : {
+                preeditOffset: ctx.measureText(editing.text.slice(0, editing.preeditStart)).width,
+              }),
           padding: parseFloat(inputCss.paddingLeft) + parseFloat(widgetCss.borderWidth),
           fill: inputCss.backgroundColor,
           stroke: widgetCss.borderColor,

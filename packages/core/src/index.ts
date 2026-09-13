@@ -83,7 +83,7 @@ export interface BlockDefinition {
 }
 export type Destination =
   | { kind: 'workspaceSlot'; name: string }
-  | { kind: 'connection'; id: string; name: 'next' };
+  | { kind: 'connection'; id: string; name: string };
 export type FieldTarget = { kind: 'field'; id: string; name: string };
 export type Step =
   | { op: 'sequence'; steps: Step[] }
@@ -118,6 +118,11 @@ export type Step =
       duration?: number;
       easing?: Ease;
     }
+  | { op: 'split'; id: string; to: Destination; duration?: number; easing?: Ease }
+  | { op: 'delete'; id: string; duration?: number }
+  | { op: 'highlight'; id: string; duration?: number }
+  | { op: 'annotate'; id: string; text: string; duration?: number }
+  | { op: 'setField' | 'choose'; target: FieldTarget; value: string; duration?: number }
   | { op: 'selectTarget'; targetId: string }
   | { op: 'selectCategory'; category: string; duration?: number }
   | { op: 'reveal'; entry: string; duration?: number };
@@ -131,11 +136,14 @@ export interface TutorialSpec {
   steps: Step[];
 }
 export interface Anchor extends Point {
+  bounds?: Rect;
   opcode: string;
   fields: Record<string, Rect & { value: string }>;
   connections: Record<string, Point>;
 }
 export interface PreparedInput {
+  /** Measured width before the composing text, in resource units. */
+  preeditOffset?: number;
   bounds: Rect;
   text: string;
   radius: number;
@@ -151,7 +159,42 @@ export interface PreparedInput {
   shadowColor: string;
   shadowWidth: number;
 }
+/** Shared input alignment and scroll geometry for text, caret and IME. */
+export function inputTextLayout(a: PreparedInput) {
+  const b = a.bounds;
+  const innerWidth = Math.max(0, b.width - 2 * a.padding);
+  const textX =
+    a.textWidth <= innerWidth
+      ? b.x + (b.width - a.textWidth) / 2
+      : b.x + b.width - a.padding - a.textWidth;
+  const caret = Math.min(b.x + b.width - a.padding, textX + a.textWidth);
+  const preeditX = textX + (a.preeditOffset ?? 0);
+  return {
+    innerWidth,
+    textX,
+    caret,
+    preeditX,
+    visiblePreeditX: Math.max(b.x + a.padding, Math.min(caret, preeditX)),
+  };
+}
+export interface PreparedMenu {
+  options: [string, string][];
+  width: number;
+  rowHeight: number;
+  fontSize: number;
+  fill: string;
+  stroke: string;
+}
+export interface Overlay {
+  bounds: Rect;
+  text: string;
+  ime?: string[];
+  imeAnchor?: Point;
+  menu?: PreparedMenu & { panel: Rect; checked: number; hovered: number; above: boolean };
+}
 export interface InputFrame {
+  preedit?: boolean;
+  candidates?: string[];
   offset: number;
   asset: string;
   selected: boolean;
@@ -276,6 +319,7 @@ export type Track = {
   | { kind: 'cursor'; from: Point; to: Point; pressed: boolean }
   | { kind: 'scroll'; from: number; to: number }
   | { kind: 'input'; id: string; frames: InputFrame[] }
+  | ({ kind: 'overlay' } & Overlay)
 );
 export interface CompiledScene {
   schemaVersion: 1;
@@ -287,8 +331,15 @@ export interface CompiledScene {
   finalTargets: Record<string, BlockDefinition[]>;
 }
 export interface Snapshot extends SceneState {
+  overlays: Overlay[];
   time: number;
-  input: { origin: Point; scale: number; appearance: PreparedInput; selected: boolean } | null;
+  input: {
+    origin: Point;
+    scale: number;
+    appearance: PreparedInput;
+    selected: boolean;
+    preedit?: boolean;
+  } | null;
 }
 export class MotionError extends Error {
   constructor(
@@ -316,9 +367,10 @@ export interface PreparationAdapter {
   manifest: Manifest;
   selectTarget(targetId: string): Promise<void>;
   prepare(block: BlockDefinition, step: string): Promise<string>;
+  prepareMenu?(block: BlockDefinition, target: FieldTarget, step: string): Promise<PreparedMenu>;
   prepareInput(
     block: BlockDefinition,
-    editing: { id: string; name: string; text: string },
+    editing: { id: string; name: string; text: string; preeditStart?: number },
     step: string,
   ): Promise<string>;
 }
@@ -331,6 +383,7 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
     ...structuredClone(scene.initial),
     time: t,
     input: null,
+    overlays: [],
   };
   const nodes = new Map(state.nodes.map((n) => [n.id, n]));
   for (const event of scene.events) {
@@ -351,7 +404,8 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
       n.x = mix(track.from.x, track.to.x, p);
       n.y = mix(track.from.y, track.to.y, p);
       n.opacity = mix(track.opacityFrom, track.opacityTo, p);
-    } else if (track.kind === 'cursor')
+    } else if (track.kind === 'overlay') state.overlays.push(structuredClone(track));
+    else if (track.kind === 'cursor')
       state.cursor = {
         x: mix(track.from.x, track.to.x, p),
         y: mix(track.from.y, track.to.y, p),
@@ -370,7 +424,26 @@ export function evaluate(time: number, scene: CompiledScene): Snapshot {
         scale: scene.manifest.layout.blockScale,
         appearance: structuredClone(prepared.input),
         selected: frame.selected,
+        ...(frame.preedit || frame.candidates ? { preedit: true } : {}),
       };
+      if (frame.candidates) {
+        const bounds = prepared.input.bounds,
+          scale = scene.manifest.layout.blockScale;
+        state.overlays.push({
+          bounds: {
+            x: n.x + bounds.x * scale,
+            y: n.y + bounds.y * scale,
+            width: bounds.width * scale,
+            height: bounds.height * scale,
+          },
+          text: '',
+          ime: [...frame.candidates],
+          imeAnchor: {
+            x: n.x + inputTextLayout(prepared.input).visiblePreeditX * scale,
+            y: n.y + (bounds.y + bounds.height) * scale,
+          },
+        });
+      }
     }
   }
   state.nodes = [...nodes.values()].filter((n) => n.targetId === state.targetId);
@@ -505,11 +578,47 @@ export function assertResources(scene: CompiledScene): void {
     } else if (track.kind === 'scroll') {
       if (!Number.isFinite(track.from) || !Number.isFinite(track.to))
         fail('SCHEMA', 'scene', 'Invalid scroll animation');
+    } else if (track.kind === 'overlay') {
+      if (!rect(track.bounds) || typeof track.text !== 'string')
+        fail('SCHEMA', 'scene', 'Invalid overlay');
+      if (track.menu) {
+        const m = track.menu;
+        if (
+          !rect(m.panel) ||
+          !Array.isArray(m.options) ||
+          !m.options.length ||
+          m.options.some(
+            (o) => !Array.isArray(o) || o.length !== 2 || o.some((v) => typeof v !== 'string'),
+          ) ||
+          !Number.isFinite(m.rowHeight) ||
+          m.rowHeight <= 0 ||
+          !Number.isFinite(m.fontSize) ||
+          m.fontSize <= 0 ||
+          !Number.isInteger(m.checked) ||
+          m.checked < -1 ||
+          m.checked >= m.options.length ||
+          !Number.isInteger(m.hovered) ||
+          m.hovered < -1 ||
+          m.hovered >= m.options.length ||
+          typeof m.fill !== 'string' ||
+          typeof m.stroke !== 'string'
+        )
+          fail('SCHEMA', 'scene', 'Invalid menu');
+      }
     } else if (track.kind === 'input') {
       if (!Array.isArray(track.frames) || !track.frames.length || track.frames[0]?.offset !== 0)
         fail('SCHEMA', 'scene', 'Invalid input frames');
       let previous = -1;
       for (const frame of track.frames) {
+        if (frame.preedit !== undefined && typeof frame.preedit !== 'boolean')
+          fail('SCHEMA', 'scene', 'Invalid preedit flag');
+        if (
+          frame.candidates !== undefined &&
+          (!Array.isArray(frame.candidates) ||
+            !frame.candidates.length ||
+            frame.candidates.some((v) => typeof v !== 'string' || !v))
+        )
+          fail('SCHEMA', 'scene', 'Invalid IME candidates');
         resource(frame.asset);
         const input = m.resources[frame.asset]?.input;
         if (
@@ -521,6 +630,13 @@ export function assertResources(scene: CompiledScene): void {
           typeof input.text !== 'string'
         )
           fail('SCHEMA', 'scene', 'Invalid prepared input frame');
+        if (
+          input.preeditOffset !== undefined &&
+          (!Number.isFinite(input.preeditOffset) ||
+            input.preeditOffset < 0 ||
+            input.preeditOffset > input.textWidth)
+        )
+          fail('SCHEMA', 'scene', 'Invalid preedit offset');
         for (const value of [
           input.radius,
           input.borderWidth,

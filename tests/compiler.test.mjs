@@ -174,7 +174,7 @@ test('TS builder and JSON share strict schema; no author coordinates/selectors',
   for (const invalid of [
     spec([{ op: 'wait', duration: 0 }]),
     spec([{ op: 'wait', duration: Infinity }]),
-    spec([{ op: 'delete', id: 'x' }]),
+    spec([{ op: 'unknown', id: 'x' }]),
     spec([
       {
         op: 'move',
@@ -704,4 +704,48 @@ test('playback tolerates a first RAF timestamp preceding play without moving bac
     if (originalCancel) globalThis.cancelAnimationFrame = originalCancel;
     else delete globalThis.cancelAnimationFrame;
   }
+});
+
+test('P2 splits a next subtree, deletes it, merges independent branches and keeps exact boundaries atomic', async () => {
+  const scene = await compile(
+    spec([
+      { op: 'create', blocks: [{ ...hat('h'), next: move('m') }], to: slot('main'), duration: 0.1 },
+      { op: 'split', id: 'm', to: slot('secondary'), duration: 0.5 },
+      {
+        op: 'parallel',
+        steps: [
+          { op: 'delete', id: 'm', duration: 0.4 },
+          { op: 'annotate', id: 'h', text: '<保留>', duration: 0.4 },
+        ],
+      },
+      { op: 'wait', duration: 0.1 },
+    ]),
+    mockAdapter(),
+  );
+  assert.equal(evaluate(0.1, scene).nodes.length, 2);
+  assert.ok(Math.abs(evaluate(0.8, scene).nodes.find((n) => n.id === 'm').opacity - 0.5) < 1e-12);
+  assert.equal(evaluate(1, scene).nodes.length, 1);
+  assert.equal(scene.finalTargets.sprite[0].next, undefined);
+  assert.match(frameSvg(0.8, scene), /&lt;保留&gt;/);
+  assert.equal(evaluate(1, scene).overlays.length, 0);
+  const before = JSON.stringify(scene);
+  evaluate(0.8, scene).overlays[0].bounds.x = -999;
+  assert.equal(JSON.stringify(scene), before);
+  await assert.rejects(
+    () =>
+      compile(
+        spec([
+          { op: 'create', blocks: [{ ...hat('h'), next: move('m') }], to: slot('main') },
+          {
+            op: 'parallel',
+            steps: [
+              { op: 'delete', id: 'm' },
+              { op: 'highlight', id: 'h' },
+            ],
+          },
+        ]),
+        mockAdapter(),
+      ),
+    /PARALLEL_CONFLICT/,
+  );
 });

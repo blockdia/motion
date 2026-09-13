@@ -1,4 +1,5 @@
 export * from './spec.js';
+import { planTyping } from './typing.js';
 import { parseTutorial } from './spec.js';
 import {
   descendants,
@@ -220,9 +221,13 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     touch(c, parent);
     if (parent.block.id === moving.block.id)
       fail('CONNECTION', path, 'Cannot connect a stack to itself');
-    if (target.next) fail('CONNECTION', path, `Connection ${to.id}.next is occupied`);
-    const a = asset(parent.node.asset, path).anchors[target.id]?.connections.next;
-    const b = asset(moving.node.asset, path).anchors[moving.block.id]?.connections.previous;
+    if (to.name === 'next' ? target.next : target.inputs?.[to.name]?.block)
+      fail('CONNECTION', path, `Connection ${to.id}.${to.name} is occupied`);
+    const a = asset(parent.node.asset, path).anchors[target.id]?.connections[to.name];
+    const b =
+      asset(moving.node.asset, path).anchors[moving.block.id]?.connections[
+        to.name === 'next' ? 'previous' : 'output'
+      ] ?? asset(moving.node.asset, path).anchors[moving.block.id]?.connections.previous;
     if (!a || !b) fail('CONNECTION', path, 'Missing next or previous connection');
     return {
       parent,
@@ -248,9 +253,23 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     let joined: Root | undefined;
     if (dest.parent && dest.target) {
       const def = structuredClone(dest.parent.block);
-      descendants(def).find((b) => b.id === dest.target!.id)!.next = structuredClone(moving.block);
+      const target = descendants(def).find((b) => b.id === dest.target!.id)!;
+      if (to.kind === 'connection' && to.name !== 'next') {
+        target.inputs ??= {};
+        target.inputs[to.name] = {
+          ...target.inputs[to.name],
+          block: structuredClone(moving.block),
+        };
+      } else target.next = structuredClone(moving.block);
       const key = await adapter.prepare(def, path);
       joined = { block: def, node: { ...dest.parent.node, asset: key } };
+      const finalAnchor = asset(key, path).anchors[moving.block.id];
+      const movingAnchor = asset(moving.node.asset, path).anchors[moving.block.id];
+      if (!finalAnchor || !movingAnchor) fail('RESOURCE', path, 'Missing joined block anchor');
+      dest.point = {
+        x: joined.node.x + (finalAnchor.x - movingAnchor.x) * scale,
+        y: joined.node.y + (finalAnchor.y - movingAnchor.y) * scale,
+      };
     }
     if (!drag) {
       const placed = joined ?? {
@@ -380,6 +399,168 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     const easing = 'easing' in s ? (s.easing ?? 'easeInOut') : 'easeInOut';
     if (s.op === 'selectCategory') return select(c, s.category, t, duration, path);
     if (s.op === 'reveal') return reveal(c, s.entry, t, duration, path);
+    if (s.op === 'highlight' || s.op === 'annotate') {
+      const { root, block } = locate(c, s.id, path);
+      touch(c, root);
+      const resource = asset(root.node.asset, path);
+      const anchor = resource.anchors[block.id];
+      if (!anchor) fail('TARGET', path, 'Missing visible block anchor');
+      const fields = Object.values(anchor.fields);
+      const width = Math.max(60, ...fields.map((f) => f.x + f.width - anchor.x));
+      c.tracks.push({
+        kind: 'overlay',
+        start: t,
+        end: t + duration,
+        step: path,
+        easing: 'linear',
+        bounds: {
+          x: root.node.x + (anchor.bounds?.x ?? anchor.x) * scale,
+          y: root.node.y + (anchor.bounds?.y ?? anchor.y) * scale,
+          width: (anchor.bounds?.width ?? Math.min(resource.box.width, width)) * scale,
+          height: (anchor.bounds?.height ?? 32) * scale,
+        },
+        text: s.op === 'annotate' ? s.text : '',
+      });
+      return t + duration;
+    }
+    if (s.op === 'delete' || s.op === 'split') {
+      const { root, block } = locate(c, s.id, path);
+      touch(c, root);
+      const anchor = asset(root.node.asset, path).anchors[block.id];
+      if (!anchor) fail('CAPABILITY', path, 'Cannot edit a hidden shadow');
+      const moving: Root = {
+        block: structuredClone(block),
+        node: {
+          ...root.node,
+          id: block.id,
+          x: root.node.x + anchor.x * scale,
+          y: root.node.y + anchor.y * scale,
+          asset: await adapter.prepare(block, path),
+        },
+      };
+      if (block !== root.block) {
+        const def = structuredClone(root.block);
+        let removed = false;
+        for (const parent of descendants(def)) {
+          if (parent.next?.id === block.id) {
+            delete parent.next;
+            removed = true;
+          }
+          for (const input of Object.values(parent.inputs ?? {})) {
+            if (input.shadow?.id === block.id)
+              fail('CAPABILITY', path, 'Shadows cannot be detached');
+            if (input.block?.id === block.id) {
+              delete input.block;
+              removed = true;
+            }
+          }
+          for (const [name, input] of Object.entries(parent.inputs ?? {}))
+            if (!input.shadow && !input.block) delete parent.inputs![name];
+        }
+        if (!removed) fail('CONNECTION', path, 'Missing parent connection');
+        root.block = def;
+        root.node.asset = await adapter.prepare(def, path);
+        emit(c, t, path, { nodes: [root.node] });
+      } else c.roots.delete(block.id);
+      if (s.op === 'delete') {
+        emit(c, t, path, { nodes: [moving.node] });
+        c.tracks.push({
+          kind: 'node',
+          id: block.id,
+          start: t,
+          end: t + duration,
+          step: path,
+          easing,
+          from: moving.node,
+          to: moving.node,
+          opacityFrom: 1,
+          opacityTo: 0,
+        });
+        emit(c, t + duration, path, { remove: [block.id] });
+        return t + duration;
+      }
+      c.roots.set(block.id, moving);
+      return place(c, moving, s.to, t, duration, path, easing, true);
+    }
+    if (s.op === 'setField' || s.op === 'choose') {
+      const { root, block } = locate(c, s.target.id, path);
+      touch(c, root);
+      if (!Object.hasOwn(block.fields ?? {}, s.target.name)) fail('FIELD', path, 'Unknown field');
+      if (!asset(root.node.asset, path).anchors[block.id]?.fields[s.target.name])
+        fail('CAPABILITY', path, 'Cannot edit a hidden field');
+      if (s.op === 'choose') {
+        if (!adapter.prepareMenu) fail('CAPABILITY', path, 'Adapter cannot prepare menus');
+        const menu = await adapter.prepareMenu(root.block, s.target, path);
+        const index = menu.options.findIndex((o) => o[1] === s.value);
+        if (index < 0) fail('FIELD', path, 'Unknown menu option');
+        const a = asset(root.node.asset, path).anchors[block.id]!.fields[s.target.name]!;
+        const bounds = {
+          x: root.node.x + a.x * scale,
+          y: root.node.y + a.y * scale,
+          width: a.width * scale,
+          height: a.height * scale,
+        };
+        const at = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+        cursor(c, c.cursor, at, t, 0.2, `${path}:approach`, 'easeInOut', false);
+        t += 0.2;
+        cursor(c, at, at, t, 0.1, `${path}:open-click`, 'linear', true);
+        t += 0.1;
+        const view = manifest.layout.workspace,
+          height = menu.options.length * menu.rowHeight + 8;
+        if (height > view.height - 16 || menu.width > view.width - 16)
+          fail('CAPABILITY', path, 'Menu exceeds workspace');
+        const above = bounds.y + bounds.height + height + 10 > view.y + view.height;
+        const panel = {
+          x: Math.max(
+            view.x + 8,
+            Math.min(at.x - menu.width / 2, view.x + view.width - menu.width - 8),
+          ),
+          y: above ? Math.max(view.y + 8, bounds.y - height - 10) : bounds.y + bounds.height + 10,
+          width: menu.width,
+          height,
+        };
+        const chosen = { x: panel.x + 40, y: panel.y + 4 + menu.rowHeight * (index + 0.5) };
+        const start = t;
+        cursor(c, at, chosen, t, duration, `${path}:option`, 'easeInOut', false);
+        t += duration;
+        cursor(c, chosen, chosen, t, 0.12, `${path}:select-click`, 'linear', true);
+        const overlay = {
+          ...menu,
+          panel,
+          above,
+          checked: menu.options.findIndex((o) => o[1] === block.fields![s.target.name]),
+          hovered: -1,
+        };
+        c.tracks.push({
+          kind: 'overlay',
+          start,
+          end: t,
+          step: path,
+          easing: 'linear',
+          bounds,
+          text: '',
+          menu: overlay,
+        });
+        c.tracks.push({
+          kind: 'overlay',
+          start: t,
+          end: t + 0.12,
+          step: path,
+          easing: 'linear',
+          bounds,
+          text: '',
+          menu: { ...overlay, hovered: index },
+        });
+        t += 0.12;
+      }
+      const def = structuredClone(root.block);
+      descendants(def).find((b) => b.id === block.id)!.fields![s.target.name] = s.value;
+      root.node.asset = await adapter.prepare(def, path);
+      root.block = def;
+      const end = s.op === 'choose' ? t : t + duration;
+      emit(c, end, path, { nodes: [root.node] });
+      return end;
+    }
     if (s.op === 'type') {
       const { root, block } = locate(c, s.target.id, path);
       touch(c, root);
@@ -411,23 +592,29 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
       t += 0.2;
       const inputStart = t;
       const withdrawDuration = 0.2;
-      const characters = [
-        ...new Intl.Segmenter(spec.defaults.locale, { granularity: 'grapheme' }).segment(s.value),
-      ].map((part) => part.segment);
+      const planned = await planTyping(s.value);
+      const typingDuration = s.duration ?? Math.max(0.5, (planned.length - 1) * 0.07);
       const frames = [];
-      for (let i = -1; i <= characters.length; i++) {
-        const text = i < 0 ? a.value : characters.slice(0, i).join('');
+      for (let i = -1; i < planned.length; i++) {
+        const part: (typeof planned)[number] = i < 0 ? { text: a.value } : planned[i]!;
         const asset = await adapter.prepareInput(
           root.block,
-          { id: field.block.id, name: field.name, text },
+          {
+            id: field.block.id,
+            name: field.name,
+            text: part.text,
+            ...(part.preeditStart === undefined ? {} : { preeditStart: part.preeditStart }),
+          },
           path,
         );
         if (!manifest.resources[asset]?.input)
           fail('RESOURCE', path, `Missing prepared input ${asset}`);
         frames.push({
-          offset: i < 0 ? 0 : withdrawDuration + (i * duration) / (characters.length + 1),
+          offset: i < 0 ? 0 : withdrawDuration + (i * typingDuration) / planned.length,
           asset,
           selected: i < 0,
+          ...(part.preedit ? { preedit: true } : {}),
+          ...(part.candidates ? { candidates: part.candidates } : {}),
         });
       }
       // Park outside the union of every prepared field shape, including its focus ring.
@@ -460,12 +647,13 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
         x: Math.max(view.x + 4, Math.min(view.x + view.width - 28, point.x)),
         y: Math.max(view.y + 4, Math.min(view.y + view.height - 32, point.y)),
       }));
+      if (planned.some((frame) => frame.candidates)) candidates.unshift(candidates.pop()!);
       const parked = candidates.find(
         (point) => point.x > right || point.x + 24 < left || point.y > bottom || point.y + 28 < top,
       );
       if (!parked) fail('TARGET', path, 'No unobstructed cursor position beside input');
       cursor(c, c.cursor, parked, t, withdrawDuration, `${path}:withdraw`, 'easeInOut', false);
-      const end = inputStart + withdrawDuration + duration;
+      const end = inputStart + withdrawDuration + typingDuration;
       c.tracks.push({
         kind: 'input',
         id: root.block.id,
@@ -484,7 +672,7 @@ export async function compile(input: unknown, adapter: PreparationAdapter): Prom
     if (s.op === 'move' || s.op === 'connect') {
       const { root, block } = locate(c, s.id, path);
       if (block !== root.block)
-        fail('UNSUPPORTED', path, 'Moving a connected child requires P2 split');
+        fail('UNSUPPORTED', path, 'Use split before moving a connected child');
       touch(c, root);
       cursor(
         c,
