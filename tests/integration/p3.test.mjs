@@ -45,6 +45,21 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
     const afterCursor = await page.locator('[data-cursor-button]').boundingBox();
     assert.ok(Math.abs(afterCursor.x - beforeCursor.x - 50) < 1);
     assert.ok(Math.abs(afterCursor.y - beforeCursor.y - 30) < 1);
+    await page.evaluate(() => window.player.resetView());
+    await page.mouse.wheel(20, 40);
+    await page.waitForFunction(() => window.player.view.y === -40);
+    assert.deepEqual(await page.evaluate(() => window.player.view), { x: -20, y: -40, zoom: 1 });
+    await page.keyboard.down('Shift');
+    await page.mouse.wheel(0, 30);
+    await page.keyboard.up('Shift');
+    await page.waitForFunction(() => window.player.view.x === -50);
+    assert.deepEqual(await page.evaluate(() => window.player.view), { x: -50, y: -40, zoom: 1 });
+    await page.getByRole('button', { name: '放大', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.player.view.zoom), 1.2);
+    await page.getByRole('button', { name: '缩小', exact: true }).click();
+    assert.equal(await page.evaluate(() => window.player.view.zoom), 1);
+    await page.getByRole('button', { name: '恢复视角', exact: true }).press('Enter');
+    assert.deepEqual(await page.evaluate(() => window.player.view), { x: 0, y: 0, zoom: 1 });
     const input = zh.tracks.find((t) => t.kind === 'input' && t.frames.some((f) => f.candidates));
     assert.ok(input);
     const time = input.start + input.frames.find((f) => f.candidates).offset;
@@ -66,7 +81,9 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
     const shifted = await page.locator('[data-input-text]').boundingBox();
     assert.ok(Math.abs(shifted.x - original.x - 50) < 1);
     assert.ok(Math.abs(shifted.y - original.y - 30) < 1);
+    await page.keyboard.down('Control');
     await page.mouse.wheel(0, -100);
+    await page.keyboard.up('Control');
     await page.waitForFunction(() => window.player.view.zoom > 1);
     assert.equal(await page.evaluate(() => window.player.playing), false);
     assert.equal(await page.evaluate(() => window.player.time), time);
@@ -87,7 +104,9 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
       assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       const box = await page.locator('.motion-frame').boundingBox();
       await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+      await page.keyboard.down('Control');
       await page.mouse.wheel(0, -100);
+      await page.keyboard.up('Control');
       await page.waitForFunction(() => window.player.view.zoom > 1);
       await page.evaluate(() => window.player.resetView());
     }

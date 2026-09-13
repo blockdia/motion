@@ -43,7 +43,11 @@ export function frameSvg(
   namespace = 'motion',
   view: WorkspaceView = { x: 0, y: 0, zoom: 1 },
 ): string {
-  if (![view.x, view.y, view.zoom].every(Number.isFinite) || view.zoom < 0.25 || view.zoom > 4)
+  if (
+    ![view.x, view.y, view.zoom].every(Number.isFinite) ||
+    view.zoom < 0.3 / compiled.manifest.layout.blockScale ||
+    view.zoom > 3 / compiled.manifest.layout.blockScale
+  )
     fail('VIEW', 'render', 'Invalid workspace view');
   if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(namespace))
     fail('NAMESPACE', 'render', 'Invalid SVG namespace');
@@ -231,12 +235,11 @@ export function mountPlayer(
   initial = undefined;
   const namespace = `player${++playerId}`;
   host.innerHTML =
-    '<div class="motion-frame" tabindex="0" aria-label="Workspace: drag to pan, scroll to zoom"></div><footer><button type="button">播放</button><input type="range" min="0" step="any" aria-label="播放时间"><output></output><button type="button" data-reset>恢复视角</button></footer><p role="status" aria-live="polite"></p>';
+    '<div class="motion-frame" tabindex="0" aria-label="Workspace: drag to pan, scroll to zoom"></div><footer><button type="button">播放</button><input type="range" min="0" step="any" aria-label="播放时间"><output></output></footer><p role="status" aria-live="polite"></p>';
   const frame = host.querySelector<HTMLDivElement>('.motion-frame')!,
     button = host.querySelector('button')!,
     range = host.querySelector('input')!,
     output = host.querySelector('output')!,
-    reset = host.querySelector<HTMLButtonElement>('[data-reset]')!,
     status = host.querySelector<HTMLElement>('[role="status"]')!;
   frame.style && (frame.style.touchAction = 'none');
   let time = 0,
@@ -256,7 +259,6 @@ export function mountPlayer(
     output.value = `${time.toFixed(2)} / ${compiled.duration.toFixed(2)} s`;
     button.textContent =
       compiled.manifest.locale === 'en' ? (playing ? 'Pause' : 'Play') : playing ? '暂停' : '播放';
-    reset.textContent = compiled.manifest.locale === 'en' ? 'Reset view' : '恢复视角';
   }
   function pause() {
     if (disposed) return;
@@ -314,7 +316,8 @@ export function mountPlayer(
     return p.x >= b.x + b.width && p.x < w.x + w.width && p.y >= w.y && p.y < w.y + w.height;
   }
   function down(event: PointerEvent) {
-    if (pending || event.button !== 0) return;
+    if (pending || event.button !== 0 || (event.target as Element).closest('[data-view-action]'))
+      return;
     const p = point(event);
     if (!p || !inside(p)) return;
     event.preventDefault();
@@ -341,10 +344,20 @@ export function mountPlayer(
     if (!p || !inside(p)) return;
     event.preventDefault();
     pause();
+    endDrag();
+    const multiplier = event.deltaMode === 1 ? 15 : 1;
+    if (event.ctrlKey) zoomAt(p, (-event.deltaY * multiplier) / 50);
+    else {
+      const horizontal = event.shiftKey && event.deltaX === 0;
+      view.x -= (horizontal ? event.deltaY : event.deltaX) * multiplier;
+      view.y -= horizontal ? 0 : event.deltaY * multiplier;
+      render();
+    }
+  }
+  function zoomAt(p: { x: number; y: number }, amount: number) {
     const w = compiled!.manifest.layout.workspace;
-    const delta =
-      event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? w.height : 1);
-    const zoom = Math.max(0.25, Math.min(4, view.zoom * Math.exp(-delta * 0.002)));
+    const scale = compiled!.manifest.layout.blockScale;
+    const zoom = Math.max(0.3 / scale, Math.min(3 / scale, view.zoom * Math.pow(1.2, amount)));
     const ratio = zoom / view.zoom;
     view = {
       x: p.x - w.x - (p.x - w.x - view.x) * ratio,
@@ -353,8 +366,32 @@ export function mountPlayer(
     };
     render();
   }
+  function action(event: Event) {
+    const control = (event.target as Element).closest('[data-view-action]');
+    if (!control || pending || !compiled) return false;
+    event.preventDefault();
+    pause();
+    endDrag();
+    const name = control.getAttribute('data-view-action');
+    if (name === 'reset') resetView();
+    else {
+      const { workspace: w, toolbox: b } = compiled.manifest.layout;
+      zoomAt(
+        { x: (b.x + b.width + w.x + w.width) / 2, y: w.y + w.height / 2 },
+        name === 'in' ? 1 : -1,
+      );
+    }
+    // The SVG is replaced on render; keep keyboard navigation on the same control.
+    frame.querySelector<SVGElement>(`[data-view-action="${name}"]`)?.focus();
+    return true;
+  }
+  function click(event: MouseEvent) {
+    action(event);
+  }
+
   function key(event: KeyboardEvent) {
     if (pending) return;
+    if ((event.key === 'Enter' || event.key === ' ') && action(event)) return;
     if (event.key === '0') {
       event.preventDefault();
       resetView();
@@ -424,7 +461,7 @@ export function mountPlayer(
   const scrub = () => seek(Number(range.value));
   button.addEventListener('click', toggle);
   range.addEventListener('input', scrub);
-  reset.addEventListener('click', resetView);
+  frame.addEventListener('click', click);
   frame.addEventListener('pointerdown', down);
   frame.addEventListener('pointermove', move);
   frame.addEventListener('pointerup', up);
@@ -465,7 +502,7 @@ export function mountPlayer(
       cancelAnimationFrame(request);
       button.removeEventListener('click', toggle);
       range.removeEventListener('input', scrub);
-      reset.removeEventListener('click', resetView);
+      frame.removeEventListener('click', click);
       frame.removeEventListener('pointerdown', down);
       frame.removeEventListener('pointermove', move);
       frame.removeEventListener('pointerup', up);

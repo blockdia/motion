@@ -2,6 +2,9 @@ import type { Manifest } from '@blockdia-motion/core';
 
 // Controlled shell labels only: never translate authored text, target names or block values.
 const english: Record<string, string> = {
+  放大: 'Zoom in',
+  缩小: 'Zoom out',
+  恢复视角: 'Reset view',
   文件: 'File',
   编辑: 'Edit',
   插件: 'Addons',
@@ -64,7 +67,20 @@ export function shellSvg(svg: string, manifest: Manifest): string {
             end,
         )
       : svg;
-  return uiPaint(translated, manifest);
+  return uiPaint(
+    manifest.locale === 'en'
+      ? translated
+          .replace(
+            /aria-label="(放大|缩小|恢复视角)"/g,
+            (_, label: string) => `aria-label="${english[label]}"`,
+          )
+          .replace(
+            /<title>(放大|缩小|恢复视角)<\/title>/g,
+            (_, label: string) => `<title>${english[label]}</title>`,
+          )
+      : translated,
+    manifest,
+  );
 }
 export const darkIme = `
 .motion-ime-panel { fill: #29292d; stroke: #74747a; }

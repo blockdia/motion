@@ -60,10 +60,10 @@ export function chrome({
     [0, 1, 2]
       .map(
         (i) =>
-          `<circle cx="742" cy="${555 + i * 44}" r="17" fill="white" stroke="#d9d9d9" stroke-width="2"/>` +
+          `<g data-view-action="${["in", "out", "reset"][i]}" role="button" tabindex="0" aria-label="${["放大", "缩小", "恢复视角"][i]}" style="cursor:pointer"><title>${["放大", "缩小", "恢复视角"][i]}</title><circle cx="742" cy="${555 + i * 44}" r="17" fill="white" stroke="#d9d9d9" stroke-width="2"/>` +
           (i < 2
             ? `<circle cx="741" cy="${554 + i * 44}" r="7" fill="none" stroke="#8790a6" stroke-width="1.5"/><path d="M746 ${560 + i * 44} l4 4 M737 ${554 + i * 44} h8 ${i === 0 ? `M741 ${550 + i * 44} v8` : ""}" fill="none" stroke="#8790a6" stroke-width="1.5"/>`
-            : `<path d="M737 640 H747 M737 646 H747" stroke="#8790a6" stroke-width="1.5"/>`),
+            : `<path d="M737 640 H747 M737 646 H747" stroke="#8790a6" stroke-width="1.5"/>`) + "</g>",
       )
       .join("") +
     `<rect x="1167" y="53" width="34" height="34" rx="3" fill="white" stroke="#d4d4d4"/><rect x="1201" y="53" width="34" height="34" fill="#ffe5e5" stroke="#d4d4d4"/><rect x="1239" y="53" width="33" height="34" rx="3" fill="white" stroke="#d4d4d4"/>` +
