@@ -86,9 +86,14 @@ export function frameSvg(
       .join('')}</g>`,
   );
   const workspaceSlot = '<g data-slot="workspace"></g>';
-  const chrome = shellSvg(m.chrome, m).replace('<g data-slot="targets"></g>', () =>
-    uiPaint(targetPanelSvg(m, s.targetId, s.targetScroll), m),
-  );
+  const chrome = shellSvg(m.chrome, m)
+    .replace(
+      '<pattern id="workspace-dots"',
+      `<pattern id="workspace-dots" patternTransform="${transform}"`,
+    )
+    .replace('<g data-slot="targets"></g>', () =>
+      uiPaint(targetPanelSvg(m, s.targetId, s.targetScroll), m),
+    );
   const overlays = s.overlays
     .map((o) => {
       if (o.menu) {

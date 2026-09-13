@@ -105,6 +105,14 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
     await page.waitForFunction(() => window.player.view.zoom > 1);
     assert.equal(await page.evaluate(() => window.player.playing), false);
     assert.equal(await page.evaluate(() => window.player.time), time);
+    assert.equal(
+      await page.evaluate(() => {
+        const grid = document.querySelector('pattern[id$="workspace-dots"]');
+        const workspace = document.querySelector('[data-workspace-view]');
+        return grid.getAttribute('patternTransform') === workspace.getAttribute('transform');
+      }),
+      true,
+    );
     await page.screenshot({ path: 'artifacts/p3/interaction.png' });
     await page.evaluate(() => window.player.play());
     assert.deepEqual(await page.evaluate(() => window.player.view), { x: 0, y: 0, zoom: 1 });
