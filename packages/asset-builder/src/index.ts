@@ -41,7 +41,9 @@ export async function createAdapter(options: {
   const { layout, anchors, catalogLayout } = await import(
     pathToFileURL(root + '/adapters/turbowarp/layout.mjs').href
   );
-  const { chrome } = await import(pathToFileURL(root + '/adapters/turbowarp/chrome.mjs').href);
+  const { chrome, shellLabels } = await import(
+    pathToFileURL(root + '/adapters/turbowarp/chrome.mjs').href
+  );
   const build = JSON.parse(await readFile(root + '/.cache/turbowarp/build.json', 'utf8')) as {
     commit: string;
     files: Record<string, string>;
@@ -76,6 +78,7 @@ export async function createAdapter(options: {
               'packages/asset-builder/prepare.js',
               'adapters/turbowarp/layout.mjs',
               'adapters/turbowarp/chrome.mjs',
+              'adapters/turbowarp/chrome-layout.mjs',
             ].map((p) => readFile(root + '/' + p, 'utf8')),
           )
         ).join('\n'),
@@ -121,6 +124,25 @@ export async function createAdapter(options: {
       ({ project, locale }) => (window as any).startPreparation(project, locale),
       { project: options.project, locale },
     );
+    const measurements = await page.evaluate((labels: string[]) => {
+      const context = document.createElement('canvas').getContext('2d')!;
+      const widths: Record<string, number> = {};
+      for (const weight of ['normal', 'bold'])
+        for (const size of [10, 12, 14]) {
+          context.font = `${weight} ${size}px "Motion Sans"`;
+          for (const label of labels)
+            widths[`${weight}:${size}:${label}`] = context.measureText(label).width;
+        }
+      return widths;
+    }, shellLabels);
+    manifest.chrome = chrome({
+      locale,
+      measurements,
+      targetPanel: true,
+      toolboxHeadings: false,
+      toolboxScrollbar: false,
+      availableCategories: [],
+    });
     let targetId = options.project.targets[0]!.id;
     async function prepareResource(
       def: BlockDefinition,

@@ -197,6 +197,43 @@ test('P3 real variants, responsive player, view transforms, races and disposal',
           `<style>@font-face{font-family:'Motion Sans';src:url('${server.url}/font.ttf')}body{margin:0}</style>${svg}`,
         );
         await page.evaluate(() => document.fonts.ready);
+        const layout = await page.evaluate(() => {
+          const failures = [];
+          const widths = {};
+          for (const group of document.querySelectorAll('[data-shell-tab]')) {
+            const name = group.getAttribute('data-shell-tab');
+            const path = group.querySelector('path').getBBox();
+            const text = group.querySelector('text');
+            const bounds = text.getBBox();
+            const icon = document.querySelector(`[data-ui="${name}"]`).getBBox();
+            if (
+              bounds.x < icon.x + icon.width + 1 ||
+              bounds.x + bounds.width > path.x + path.width - 15
+            )
+              failures.push(name);
+            if (Number(text.getAttribute('font-size')) !== 12) failures.push(name + ':font');
+            widths[name] = path.width;
+          }
+          for (const group of document.querySelectorAll('[data-shell-region]')) {
+            const box = group.querySelector('rect').getBBox();
+            const text = group.querySelector('text').getBBox();
+            if (text.x < box.x || text.x + text.width > box.x + box.width)
+              failures.push(group.getAttribute('data-shell-region'));
+          }
+          const advanced = document.querySelector('[data-shell-menu="advanced"] text').getBBox();
+          const title = document
+            .querySelector('[data-shell-region="project-title"] rect')
+            .getBBox();
+          if (advanced.x + advanced.width + 20 > title.x) failures.push('advanced-title-gap');
+          const last = document.querySelector('[data-shell-tab="sound"] path').getBBox();
+          const search = document.querySelector('[data-shell-region="search"] rect').getBBox();
+          if (last.x + last.width + 12 > search.x) failures.push('tabs-search-gap');
+          return { failures, widths };
+        });
+        assert.deepEqual(layout.failures, [], JSON.stringify({ locale, layout }));
+        if (locale === 'en') assert.ok(layout.widths.costume > 100);
+        else assert.equal(layout.widths.costume, 90);
+
         await page.screenshot({ path: `artifacts/p3/${name}-browser.png` });
         await writeFile(`artifacts/p3/${name}-video.png`, rasterFrame(scene, time, font));
         const diff = await page.evaluate(async (name) => {

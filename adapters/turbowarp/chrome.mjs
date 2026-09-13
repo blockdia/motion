@@ -1,8 +1,10 @@
 import { layout as l, theme as c, rectAttributes as attrs } from "./layout.mjs";
+import { chromeLayout } from "./chrome-layout.mjs";
+export { shellLabels } from "./chrome-layout.mjs";
 import { icons } from "./icons.mjs";
 const box = (r, fill, extra = "") =>
   `<rect ${attrs(r)} fill="${fill}" ${extra}/>`;
-const text = (x, y, value, size = 12, fill = c.text) =>
+const rawText = (x, y, value, size = 12, fill = c.text) =>
   `<text x="${x}" y="${y}" font-size="${size}" fill="${fill}">${value}</text>`;
 const input = (x, y, width, height = 32) =>
   `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${height / 2}" fill="white" stroke="#d4d4d4"/>`;
@@ -11,7 +13,24 @@ export function chrome({
   availableCategories = null,
   toolboxScrollbar = true,
   targetPanel = false,
+  locale = "zh-CN",
+  measurements,
 } = {}) {
+  const geometry = chromeLayout(locale, measurements);
+  const { translate: t, menu, title, project, feedback, tabs, search } = geometry;
+  const movedIcons = Object.fromEntries(Object.entries(icons).map(([key, value]) => [key, { ...value }]));
+  for (const item of menu) {
+    movedIcons[item.icon].x = item.x;
+    if (item.caret) movedIcons[`caret-${item.icon}`].x = item.caretX;
+  }
+  movedIcons['project-page'].x = project.x + 12;
+  for (const tab of tabs) movedIcons[tab.icon].x = tab.x + 21;
+  const text = (x, y, value, size = 12, fill = c.text) => {
+    const end = { 角色: 824, 显示: 824, 大小: 968, 方向: 1108 }[value];
+    if (end) return rawText(end, y, t(value), size, fill).replace('<text ', '<text text-anchor="end" ');
+    if (['舞台', '背景'].includes(value)) return rawText(1236, y, t(value), size, fill).replace('<text ', '<text text-anchor="middle" ');
+    return rawText(x, y, t(value), size, fill);
+  };
   const categories = [
     ["运动", "#4c97ff"],
     ["外观", "#9966ff"],
@@ -26,19 +45,12 @@ export function chrome({
   return (
     box({ x: 0, y: 0, width: l.width, height: l.height }, c.background) +
     box(l.menu, c.accent) +
-    `<g font-weight="bold">${text(32, 28, "Settings", 12, "white")}${text(143, 28, "文件", 12, "white")}${text(227, 28, "编辑", 12, "white")}${text(311, 28, "插件", 12, "white")}${text(387, 28, "高级", 12, "white")}</g>` +
-    `<rect x="440" y="8" width="191" height="32" rx="3" fill="white" opacity=".2"/><rect x="640" y="8" width="124" height="32" rx="3" fill="none" stroke="#dc4141"/><rect x="773" y="8" width="112" height="32" rx="3" fill="white"/>` +
-    text(450, 28, "Motion 教程", 12, "white") +
-    text(680, 28, "查看作品页面", 12, "white") +
-    text(784, 28, "TurboWarp 反馈", 12, c.accent) +
-    ["代码", "造型", "声音"]
-      .map(
-        (name, i) =>
-          `<path d="M${i * 82} 92 V${i ? 73 : 69} Q${i * 82} ${i ? 58 : 53} ${i * 82 + 16} ${i ? 58 : 53} H${i * 82 + 72} Q${i * 82 + 90} ${i ? 58 : 53} ${i * 82 + 90} 74 V92Z" fill="${i ? c.tertiary : c.panel}" stroke="${c.border}"/>${text(i * 82 + 45, 79, name, 12, i ? c.text : c.accent)}`,
-      )
-      .reverse()
-      .join("") +
-    `<rect x="271" y="59" width="197" height="23" rx="3" fill="white" stroke="#d4d4d4"/>${text(277, 75, "查找（Ctrl+F）", 12, "#777777")}` +
+    `<g font-weight="bold">${menu.map(item => `<g data-shell-menu="${item.icon}">${text(item.textX, 28, item.label, 12, 'white')}</g>`).join('')}</g>` +
+    `<g data-shell-region="project-title"><rect x="${title.x}" y="8" width="${title.width}" height="32" rx="3" fill="white" opacity=".2"/>${text(title.x + 10, 28, 'Motion 教程', 12, 'white')}</g>` +
+    `<g data-shell-region="project-page"><rect x="${project.x}" y="8" width="${project.width}" height="32" rx="3" fill="none" stroke="#dc4141"/>${text(project.x + 40, 28, '查看作品页面', 12, 'white')}</g>` +
+    `<g data-shell-region="feedback"><rect x="${feedback.x}" y="8" width="${feedback.width}" height="32" rx="3" fill="white"/>${text(feedback.x + 11, 28, 'TurboWarp 反馈', 12, c.accent)}</g>` +
+    tabs.map((tab, i) => `<g data-shell-tab="${tab.icon}"><path d="M${tab.x} 92 V${i ? 73 : 69} Q${tab.x} ${i ? 58 : 53} ${tab.x + 16} ${i ? 58 : 53} H${tab.x + tab.width - 18} Q${tab.x + tab.width} ${i ? 58 : 53} ${tab.x + tab.width} 74 V92Z" fill="${i ? c.tertiary : c.panel}" stroke="${c.border}"/>${text(tab.x + 45, 79, tab.label, 12, i ? c.text : c.accent)}</g>`).reverse().join('') +
+    `<g data-shell-region="search"><rect x="${search.x}" y="59" width="${search.width}" height="23" rx="3" fill="white" stroke="#d4d4d4"/>${text(search.x + 6, 75, '查找（Ctrl+F）', 12, '#777777')}</g>` +
     box(l.workspace, c.toolbox, `stroke="${c.border}" rx="8"`) +
     `<defs><pattern id="workspace-dots" x="311" y="93" width="27" height="27" patternUnits="userSpaceOnUse"><circle cx="13" cy="13" r=".7" fill="${c.grid}"/></pattern></defs>` +
     box(l.workspace, "url(#workspace-dots)") +
@@ -60,7 +72,7 @@ export function chrome({
     [0, 1, 2]
       .map(
         (i) =>
-          `<g data-view-action="${["in", "out", "reset"][i]}" role="button" tabindex="0" aria-label="${["放大", "缩小", "恢复视角"][i]}" style="cursor:pointer"><title>${["放大", "缩小", "恢复视角"][i]}</title><circle cx="742" cy="${555 + i * 44}" r="17" fill="white" stroke="#d9d9d9" stroke-width="2"/>` +
+          `<g data-view-action="${["in", "out", "reset"][i]}" role="button" tabindex="0" aria-label="${t(["放大", "缩小", "恢复视角"][i])}" style="cursor:pointer"><title>${t(["放大", "缩小", "恢复视角"][i])}</title><circle cx="742" cy="${555 + i * 44}" r="17" fill="white" stroke="#d9d9d9" stroke-width="2"/>` +
           (i < 2
             ? `<circle cx="741" cy="${554 + i * 44}" r="7" fill="none" stroke="#8790a6" stroke-width="1.5"/><path d="M746 ${560 + i * 44} l4 4 M737 ${554 + i * 44} h8 ${i === 0 ? `M741 ${550 + i * 44} v8` : ""}" fill="none" stroke="#8790a6" stroke-width="1.5"/>`
             : `<path d="M737 640 H747 M737 646 H747" stroke="#8790a6" stroke-width="1.5"/>`) + "</g>",
@@ -88,7 +100,7 @@ export function chrome({
     text(1226, 580, "背景", 10) +
     '<g data-slot="targets"></g>' +
     `<circle cx="1153" cy="686" r="24" fill="${c.accent}" stroke="#ffb5b5" stroke-width="4"/><circle cx="1236" cy="686" r="24" fill="${c.accent}" stroke="#ffb5b5" stroke-width="4"/>` +
-    Object.entries(icons)
+    Object.entries(movedIcons)
       .filter(([name]) => !targetPanel || !["show", "hide"].includes(name))
       .map(
         ([name, im]) =>
