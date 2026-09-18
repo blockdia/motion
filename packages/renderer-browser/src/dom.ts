@@ -90,7 +90,7 @@ export function createShell(
   const root = element(
     'div',
     parent,
-    'position:relative;width:1280px;height:720px;overflow:hidden;transform-origin:0 0;font-size:12px;isolation:isolate',
+    'position:relative;width:1280px;height:720px;overflow:hidden;transform-origin:0 0;font-size:12px;color:var(--text);isolation:isolate',
   );
   root.className = 'motion-scene';
   root.style.fontFamily = fontFamily;
@@ -480,16 +480,21 @@ function drawOverlays(host: HTMLElement, s: Snapshot, m: Manifest) {
   s.overlays.forEach((o, i) => {
     if (o.menu) {
       const a = o.menu;
+      const foreground = a.context ? blockColor(m, 'contextMenuForeground', '#000000') : 'white',
+        hover = a.context
+          ? blockColor(m, 'contextMenuActiveBackground', '#d6e9f8')
+          : blockColor(m, 'menuHover', 'rgba(0, 0, 0, 0.2)'),
+        disabledForeground = blockColor(m, 'contextMenuDisabledForeground', '#cccccc');
       const el = layer(
         'overlay' + i,
         a.panel,
         a.options
           .map(
             (v, j) =>
-              `<div style="height:${a.rowHeight}px;display:flex;align-items:center;padding:0 12px;font-size:${a.fontSize}px;font-weight:${a.context ? 'normal' : 'bold'};background:${a.hovered === j ? (a.context ? '#e8f0fe' : '#0003') : 'transparent'};opacity:${a.enabled?.[j] === false ? 0.5 : 1}">${a.checked === j ? '✓ ' : ''}${escape(v[0])}</div>`,
+              `<div style="height:${a.rowHeight}px;display:flex;align-items:center;padding:0 12px;font-size:${a.fontSize}px;font-weight:${a.context ? 'normal' : 'bold'};background:${a.hovered === j ? hover : 'transparent'};color:${a.context && a.enabled?.[j] === false ? disabledForeground : foreground};opacity:${!a.context && a.enabled?.[j] === false ? 0.5 : 1}">${a.checked === j ? '✓ ' : ''}${escape(v[0])}</div>`,
           )
           .join(''),
-        `isolation:isolate;z-index:0;padding:4px 0;border:1px solid ${a.stroke};border-radius:4px;background:${a.fill};color:${a.context ? 'var(--text)' : 'white'};`,
+        `isolation:isolate;z-index:0;padding:4px 0;border:1px solid ${a.stroke};border-radius:4px;background:${a.fill};color:${foreground};`,
       );
       if (!a.context) {
         el.querySelector('[data-menu-arrow]')?.remove();
