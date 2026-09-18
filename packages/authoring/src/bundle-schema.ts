@@ -9,7 +9,7 @@ export function parseBundle(input: unknown): TutorialBundle {
     b.kind !== 'blockdia-motion/tutorial' ||
     b.adapterVersion !== adapterVersion
   )
-    fail('SCHEMA', 'bundle', 'Expected current semantic tutorial bundle; recompile old scene.json');
+    fail('SCHEMA', 'bundle', 'Expected a version 2 semantic tutorial bundle');
   if (
     Object.keys(b).some(
       (k) => !['schemaVersion', 'kind', 'adapterVersion', 'tutorial', 'typing'].includes(k),

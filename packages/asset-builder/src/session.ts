@@ -10,7 +10,7 @@ import {
   type ToolboxEntry,
   type FontOptions,
 } from '@blockdia-motion/core';
-import { blocksCommit, guiCommit, imeThemeFor } from '@blockdia-motion/adapter-turbowarp';
+import { blocksCommit, guiCommit } from '@blockdia-motion/adapter-turbowarp';
 import {
   layout as defaultLayout,
   anchors,
@@ -66,7 +66,6 @@ export async function createSession(options: {
   };
   await (window as any).startPreparation(options.project, locale, colorTheme, font);
   manifest.appearance = (window as any).editorAppearance;
-  const imeTheme = imeThemeFor(colorTheme);
   let targetId = options.project.targets[0]!.id;
   async function prepareResource(
     def: BlockDefinition,
@@ -109,7 +108,7 @@ export async function createSession(options: {
           { key, def, editing, markerId, dropdown },
         )) as { resource: Resource; theme: string };
         manifest.resources[key] = result.resource;
-        manifest.theme = result.theme + imeTheme;
+        manifest.theme = result.theme;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         fail(message.includes('CAPABILITY:') ? 'CAPABILITY' : 'BLOCKLY', step, message);
@@ -248,7 +247,7 @@ export async function createSession(options: {
       });
     }
     manifest.targets[target.id] = catalog;
-    manifest.theme = extracted.theme + imeTheme;
+    manifest.theme = extracted.theme;
   }
   await adapter.selectTarget(options.project.targets[0]!.id);
   return adapter;

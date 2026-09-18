@@ -38,7 +38,6 @@ function mockAdapter() {
     viewport: { width: 1280, height: 720 },
     locale: 'zh-CN',
     theme: '',
-    chrome: '<g data-slot="targets"></g>',
     layout: {
       blockScale: 0.675,
       toolboxPadding: 4,
@@ -649,7 +648,7 @@ test('only catalog keys and actual fields are accepted; compiled output is targe
   assert.deepEqual(Object.keys(scene.finalTargets), ['stage', 'sprite']);
 });
 
-test('P2 splits a next subtree, deletes it, merges independent branches and keeps exact boundaries atomic', async () => {
+test('splits a next subtree, deletes it, merges independent branches and keeps exact boundaries atomic', async () => {
   const scene = await compile(
     spec([
       { op: 'create', blocks: [{ ...hat('h'), next: move('m') }], to: slot('main'), duration: 0.1 },

@@ -12,6 +12,4 @@
 | 菜单行 hover                | `css.js`：`.blocklyDropDownDiv .goog-menuitem-highlight`；`colours.js`：`menuHover`                             | 鼠标每帧命中行；黑色 .2 叠加，与 checked 对勾独立，禁用行不高亮                                               |
 | 分类滚动                    | `flyout_base.js`：`stepScrollAnimation`                                                                         | 点击分类后滚动；剩余距离为初始距离 × `.3 ** (elapsedMs / 60 + 1)`，不足 1 像素到位；长距离不被默认 .25 秒截断 |
 
-回归：`tests/integration/interaction-states.test.mjs` 验证 boolean 空槽、菜单打开/关闭资源、点击前 hover 和滚动公式；`p2.test.mjs` 覆盖 reporter shadow、容器拆分及所有预览中间帧的浏览器/视频像素对比；`all-api.test.mjs` 检查实际 playground 页面。运行集成测试会刷新 `artifacts/p2`、`artifacts/all-api` 和 `artifacts/interaction-audit`。
-
-原先遗漏的原因是仅提取了普通积木和一种 insertion marker，未覆盖 replacement 分支、拖动表面与字段打开态；菜单行高亮则错误地写成了点击阶段的固定状态。本次将这些中间状态纳入原生资源提取与回归。
+回归：`tests/integration/interaction-states.test.mjs` 验证 boolean 空槽、菜单打开/关闭资源、点击前 hover 和滚动公式；`structural-editing.test.mjs` 覆盖 reporter shadow、容器拆分及所有预览中间帧的浏览器/视频像素对比；`all-api.test.mjs` 检查实际 playground 页面。测试截图写入 `artifacts/browser-tests/`，全部 API 示例写入 `artifacts/all-api/`。

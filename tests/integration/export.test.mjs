@@ -9,7 +9,7 @@ import { exportVideo } from '../../packages/renderer-video/dist/index.js';
 import { openBrowser } from '../../packages/asset-builder/dist/index.js';
 import tutorial from '../../examples/basic-editing/tutorial.ts';
 const font = '/System/Library/Fonts/Supplemental/Arial Unicode.ttf';
-const out = 'artifacts/p4-tests';
+const out = 'artifacts/export-tests';
 const spec = {
   ...tutorial,
   steps: [
@@ -20,7 +20,7 @@ const spec = {
           id: 'say',
           opcode: 'looks_say',
           inputs: {
-            MESSAGE: { shadow: { id: 'text', opcode: 'text', fields: { TEXT: 'P4 中文' } } },
+            MESSAGE: { shadow: { id: 'text', opcode: 'text', fields: { TEXT: '导出 中文' } } },
           },
         },
       ],
@@ -163,7 +163,10 @@ test(
         const image = `${out}/browser-${frame}.png`;
         await h.page.locator('.motion-scene').screenshot({ path: image, animations: 'disabled' });
         const result = comparison(rgb(image), p);
-        const regression = comparison(rgb(`docs/p4-baseline/browser-${frame}.png`), rgb(image));
+        const regression = comparison(
+          rgb(`tests/fixtures/export/browser-${frame}.png`),
+          rgb(image),
+        );
         assert.ok(
           regression.mean <= 3 && regression.changed <= 0.025,
           `keyframe regression: ${JSON.stringify(regression)}`,

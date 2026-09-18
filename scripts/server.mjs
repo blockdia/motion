@@ -2,25 +2,19 @@ import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 export const root = resolve(import.meta.dirname, '..');
-// P0 historical tools may opt in via MOTION_FONT; current export passes a font explicitly.
-export const font = process.env.MOTION_FONT;
 export async function serve(port = 0, options = {}) {
   const server = createServer(async (req, res) => {
     try {
       const url = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
       const path =
         url === '/font.ttf'
-          ? options.font || font
-          : resolve(
-              root,
-              '.' +
-                (url.startsWith('/source/')
-                  ? url.replace('/source/', '/.cache/turbowarp/')
-                  : url === '/'
-                    ? '/p0/index.html'
-                    : url),
-            );
-      if (path !== font && path !== options.font && !path.startsWith(root + sep)) {
+          ? options.font
+          : resolve(root, '.' + (url === '/' ? '/apps/playground/index.html' : url));
+      if (!path) {
+        res.writeHead(404).end('Not found');
+        return;
+      }
+      if (path !== options.font && !path.startsWith(root + sep)) {
         res.writeHead(403).end();
         return;
       }

@@ -63,7 +63,7 @@ test(
           ],
         },
       });
-      const output = 'artifacts/migration/stage-cors.mp4';
+      const output = 'artifacts/browser-tests/stage-cors.mp4';
       const report = await exportVideo(b, { output, font, fps: 4, width: 640, height: 360 });
       assert.equal(report.layers.mediaFrames, 2);
       assert.equal(report.frames, 2);
@@ -168,7 +168,7 @@ test('stage video trim, gaps, shuffled exact seeking, duration and browser expor
   } finally {
     await h.close();
   }
-  const output = 'artifacts/migration/stage-export.mp4';
+  const output = 'artifacts/browser-tests/stage-export.mp4';
   const report = await exportVideo(b, { output, font, fps: 10 });
   assert.equal(report.backend, 'composite');
   assert.equal(report.nodePeakRssBytes, report.memory.nodePeakRssBytes);

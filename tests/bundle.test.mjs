@@ -8,7 +8,7 @@ test('semantic bundles contain only author data and deterministic input frames',
   assert.deepEqual(parseBundle(JSON.parse(JSON.stringify(b))), b);
   assert.ok(!JSON.stringify(b).includes('<svg'));
   assert.equal(b.manifest, undefined);
-  assert.throws(() => parseBundle({ schemaVersion: 1, manifest: {} }), /recompile/);
+  assert.throws(() => parseBundle({ schemaVersion: 1, manifest: {} }), { code: 'SCHEMA' });
   const spec = {
     ...tutorial,
     steps: [{ op: 'type', target: { kind: 'field', id: 'text', name: 'TEXT' }, value: '你好' }],

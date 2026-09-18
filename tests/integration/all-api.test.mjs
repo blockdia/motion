@@ -12,9 +12,7 @@ test('all API tutorial prepares in the consuming playground; persistent nodes, c
   try {
     const errors = [];
     h.page.on('pageerror', (e) => errors.push(e.message));
-    await h.page.goto(
-      h.server.url + '/apps/playground/index.html?scene=/artifacts/all-api/tutorial.json',
-    );
+    await h.page.goto(h.server.url + '/?scene=/artifacts/all-api/tutorial.json');
     await h.page.waitForFunction(() => window.ready === true, {}, { timeout: 60000 });
     assert.equal(await h.page.locator('[data-motion-preparation]').count(), 0);
     await h.page.evaluate(() => window.player.seek(2));
@@ -63,7 +61,7 @@ test('all API tutorial prepares in the consuming playground; persistent nodes, c
       await h.page.setViewportSize({ width, height: 900 });
       await h.page.evaluate(() => window.player.seek(4));
       await h.page.screenshot({
-        path: `artifacts/migration/playground-${width}.png`,
+        path: `artifacts/browser-tests/playground-${width}.png`,
         fullPage: true,
       });
       const overflow = await h.page.evaluate(

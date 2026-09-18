@@ -25,8 +25,6 @@ scene.direct.delete('block'); // 立即移除整段，无动画
 
 `move` 和 `connect` 现在可以直接引用已连接的子块，会像编辑器一样先拖开子树；`split` 保留为强调拆分过程的显式入口。被占用的连接仍拒绝，不自动挤出已有积木。
 
-迁移：`delete(id, 0.4)` 改为 `delete(id, {duration: 0.4})`。依赖原淡出删除或即时 target 切换的教程应明确选择底层操作，或重新检查高层交互增加的时间。
-
 ## 连接与 target 切换
 
 高层连接接近目标时，语句积木展示原生 insertion marker，reporter/boolean 对已有 shadow 或空输入槽展示 replacement glow。拆开后尚未离开原连接范围时也保留预览；所有拖动积木使用原生拖动表面的投影参数。底层 connect 直接拼接，不展示预览。
@@ -40,7 +38,7 @@ scene.direct.delete('block'); // 立即移除整段，无动画
 ```sh
 pnpm example:all-api
 pnpm preview
-# 打开 /apps/playground/index.html?scene=/artifacts/all-api/tutorial.json
+# 打开 /?scene=/artifacts/all-api/tutorial.json
 ```
 
 编译、检查、目录查询和视频导出：
@@ -106,7 +104,7 @@ stage: {
 
 Node 的 `exportVideo(bundle, { output, font, fps, resourceBaseUrl })` 来自 `@blockdia-motion/renderer-video`，其中 `font` 是必填的本地字体路径。默认使用 UI 图层截图缓存、SVG 栅格素材缓存与逐帧 RGBA 合成，再由 FFmpeg 编码；`resourceBaseUrl` 相对本地静态服务根目录解析。首轮不输出音轨。
 
-`CompiledScene`、`compile(spec, adapter)` 和素材 manifest 是准备器内部协议，用于语义与布局测试，不是发布格式。原整场 `frameSvg` 和 `rasterFrame` API 已移除。
+`CompiledScene`、`compile(spec, adapter)` 和素材 manifest 是准备器内部协议，用于语义与布局测试，不是发布格式。
 
 ## 导出选项与取消
 
@@ -134,7 +132,7 @@ await exportVideo(bundle, {
 
 `backend: 'screenshot'` 保留整场 Chrome 截图参考后端，每个并发页面独立准备。其缓存保存 PNG 整帧，有舞台视频时关闭。两种后端都按帧序流式编码，最多一个并发批次等待写入；PNG 帧与 RGBA 帧的字节量不同。
 
-`onProgress` 的阶段为 `prepared`、`frames`、`encoding`；回调抛错会终止导出并清理。取消或失败会关闭 Chrome、等待编码器结束、移除临时 MP4；成功后原子替换输出。API 调用者须先创建输出父目录。报告包含准备、合成、管道背压、编码 CPU/收尾、缓存和队列峰值以及进程树 RSS；字段口径与环境预算见 [P4](p4.md)。
+`onProgress` 的阶段为 `prepared`、`frames`、`encoding`；回调抛错会终止导出并清理。取消或失败会关闭 Chrome、等待编码器结束、移除临时 MP4；成功后原子替换输出。API 调用者须先创建输出父目录。报告包含准备、合成、管道背压、编码 CPU/收尾、缓存和队列峰值以及进程树 RSS；字段口径与环境预算见 [视频导出](video-export.md)。
 
 CLI 保留位置参数帧率，并支持：
 

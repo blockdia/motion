@@ -6,13 +6,13 @@ try {
   h.page.on('console', (msg) => {
     if (msg.type() === 'error') console.error(msg.text());
   });
-  await h.page.goto(h.server.url + '/apps/playground/index.html');
+  await h.page.goto(h.server.url + '/');
   await h.page.waitForFunction(() => window.ready === true, {}, { timeout: 60000 });
   await h.page.evaluate(() => window.player.seek(1.5));
-  await mkdir('artifacts/migration', { recursive: true });
-  await h.page.screenshot({ path: 'artifacts/migration/playground.png', fullPage: true });
+  await mkdir('artifacts/browser-tests', { recursive: true });
+  await h.page.screenshot({ path: 'artifacts/browser-tests/playground.png', fullPage: true });
   await writeFile(
-    'artifacts/migration/smoke.json',
+    'artifacts/browser-tests/smoke.json',
     JSON.stringify(
       await h.page.evaluate(() => ({
         iframes: document.querySelectorAll('[data-motion-preparation]').length,

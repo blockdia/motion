@@ -34,10 +34,10 @@ export async function rendererHarness(scene) {
       });
     },
     async screenshot(name) {
-      await mkdir('artifacts/migration', { recursive: true });
+      await mkdir('artifacts/browser-tests', { recursive: true });
       return host.page
         .locator('.motion-scene')
-        .screenshot({ path: `artifacts/migration/${name}.png` });
+        .screenshot({ path: `artifacts/browser-tests/${name}.png` });
     },
   };
 }

@@ -21,7 +21,7 @@ test('pinned Blockly compiles independent JSON/TS inputs and rejects invalid edi
   try {
     const a = await compile(tutorial, adapter),
       b = await compile(
-        JSON.parse(await readFile('examples/basic-editing/tutorial.json', 'utf8')),
+        JSON.parse(await readFile('tests/fixtures/basic-editing.json', 'utf8')),
         adapter,
       );
     assert.deepEqual(a, b);

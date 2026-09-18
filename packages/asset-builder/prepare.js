@@ -1,4 +1,4 @@
-/* Preparation-only pinned Blockly bridge. SVG normalization follows P0. */
+/* Preparation-only pinned Blockly bridge. SVG normalization preserves measured geometry and internal references. */
 window.startPreparation = async function (
   project,
   locale = 'zh-CN',
