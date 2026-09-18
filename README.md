@@ -13,7 +13,7 @@ pnpm build
 pnpm preview
 ```
 
-打开 [本地 playground](http://127.0.0.1:4173/)。`build` 构建运行时和全部五个示例，默认展示中英文、浅深主题和舞台视频。首次构建运行时会启动无头 Chrome，从固定 GUI 提取外壳；后续复用模板。修改外壳提取器后会自动重建，也可执行 `pnpm shell:build`。
+打开 [本地 playground](http://127.0.0.1:4173/)。`build` 构建运行时和全部五个示例，默认展示中英文、浅深主题和舞台视频。Playground 通过 iframe 嵌入独立播放器，主题默认跟随系统，播放条设置中可调整倍速、主题与鼠标效果。首次构建运行时会启动无头 Chrome，从固定 GUI 提取外壳；后续复用模板。修改外壳提取器后会自动重建，也可执行 `pnpm shell:build`。
 
 开发环境需要 Node.js ≥22.18、Chrome、FFmpeg，以及固定版本 Blockly/GUI 的源码和构建依赖，详见 [开发与构建](docs/development.md)。这些源码 checkout 只用于构建，正式播放不访问它们。
 
@@ -31,7 +31,10 @@ pnpm format:check
 
 静态部署时复制生成的版本化运行时目录、教程 JSON 和媒体文件，参照 [播放器 API](docs/api.md) 设置 `runtimeUrl` 与 `resourceBaseUrl`。网页默认使用 TurboWarp 风格的系统字体栈，允许指定字体；视频导出必须提供字体文件。
 
+独立播放器入口为 `/player/?scene=/artifacts/playground/tutorial.zh-CN.json`，支持 iframe 嵌入。静态部署可直接使用运行时目录中的 `embed.html`，详见 [独立播放器与 iframe 嵌入](docs/embed.md)。
+
 - [教程 API 与播放器](docs/api.md)
+- [独立播放器与 iframe 嵌入](docs/embed.md)
 - [客户端渲染、外壳来源与限制](docs/client-rendering.md)
 - [开发与构建](docs/development.md)
 - [导出性能、预算与长视频基准](docs/video-export.md)

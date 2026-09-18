@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="zh-CN">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="motion-runtime" content="/artifacts/runtime/turbowarp-7c58de66-a2946eeb-client-1/" />
+  <title>Blockdia Motion 播放器</title>
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #17181b;
+      color: #fff;
+      font-family: system-ui, sans-serif;
+    }
+    #viewport {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #17181b;
+    }
+    #player {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+      container-type: inline-size;
+    }
+    #player > footer {
+      display: none !important;
+    }
+    #controls {
+      position: absolute;
+      inset: auto 0 0;
+      box-sizing: border-box;
+      padding: 24px 16px 8px;
+      background: linear-gradient(transparent, rgba(0, 0, 0, 0.82));
+      transition: opacity 0.18s;
+      z-index: 2;
+    }
+    #player[data-playing='true'][data-visible='0'] #controls {
+      opacity: 0;
+      pointer-events: none;
+    }
+    body[data-controls='0'] #controls {
+      display: none;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .spacer {
+      flex: 1;
+    }
+    #controls button {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      flex-shrink: 0;
+      padding: 6px;
+      border: 0;
+      border-radius: 6px;
+      background: none;
+      color: inherit;
+      cursor: pointer;
+    }
+    #controls button:hover,
+    #controls button[aria-expanded='true'] {
+      background: #ffffff25;
+    }
+    #controls button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    #controls button[hidden] {
+      display: none;
+    }
+    #controls svg {
+      width: 24px;
+      height: 24px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    #controls button:focus-visible,
+    #progress:focus-visible,
+    #settings select:focus-visible {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+    #time {
+      white-space: nowrap;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    #progress {
+      display: block;
+      width: 100%;
+      height: 16px;
+      padding: 0;
+      margin: 0 0 2px;
+      cursor: pointer;
+      appearance: none;
+      background: none;
+      accent-color: #ff625c;
+    }
+    #progress::-webkit-slider-runnable-track {
+      height: 3px;
+      border-radius: 2px;
+      background: linear-gradient(
+        to right,
+        #ff625c var(--progress, 0%),
+        #ffffff60 var(--progress, 0%)
+      );
+    }
+    #progress::-webkit-slider-thumb {
+      appearance: none;
+      width: 12px;
+      height: 12px;
+      margin-top: -4.5px;
+      border: 0;
+      border-radius: 50%;
+      background: #ff625c;
+    }
+    #progress::-moz-range-track {
+      height: 3px;
+      border-radius: 2px;
+      background: #ffffff60;
+    }
+    #progress::-moz-range-progress {
+      height: 3px;
+      background: #ff625c;
+    }
+    #progress::-moz-range-thumb {
+      width: 12px;
+      height: 12px;
+      border: 0;
+      border-radius: 50%;
+      background: #ff625c;
+    }
+    #settings {
+      position: absolute;
+      right: 12px;
+      bottom: 82px;
+      box-sizing: border-box;
+      width: min(280px, calc(100% - 24px));
+      max-height: calc(100% - 90px);
+      overflow: auto;
+      padding: 14px;
+      border: 1px solid #ffffff20;
+      border-radius: 10px;
+      background: #242529f5;
+      box-shadow: 0 8px 30px #0005;
+      color: #fff;
+      z-index: 3;
+    }
+    #settings[hidden] {
+      display: none;
+    }
+    #settings h2 {
+      margin: 0 0 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    #settings label {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 12px;
+    }
+    #settings select {
+      max-width: 150px;
+      min-width: 0;
+      border: 1px solid #ffffff25;
+      border-radius: 5px;
+      padding: 5px;
+      background: #35363b;
+      color: #fff;
+      font: inherit;
+    }
+    #player > p,
+    #message {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      padding: 16px;
+      box-sizing: border-box;
+      display: grid;
+      place-content: center;
+      overflow: auto;
+      overflow-wrap: anywhere;
+      text-align: center;
+      pointer-events: none;
+      z-index: 1;
+    }
+    #player > p:not(:empty),
+    #message:not(:empty) {
+      background: #17181bcc;
+      color: #fff;
+    }
+    #player > p:empty,
+    #message:empty {
+      display: none;
+    }
+    @container (max-width:320px) {
+      #controls {
+        padding: 20px 8px 4px;
+      }
+      .control-row {
+        gap: 2px;
+      }
+      #time {
+        font-size: 10px;
+      }
+      #controls button {
+        width: 30px;
+        height: 30px;
+      }
+      #settings {
+        right: 6px;
+        bottom: 66px;
+        max-height: calc(100% - 72px);
+        padding: 10px;
+        width: calc(100% - 12px);
+      }
+      #settings label {
+        margin-top: 8px;
+      }
+    }
+  </style>
+  <div id="viewport">
+    <main id="player" aria-label="教程播放器" aria-busy="true"></main>
+  </div>
+  <p id="message" role="status" aria-live="polite">正在加载教程…</p>
+  <template id="control-template">
+    <div id="controls" role="group" aria-label="播放控件">
+      <input
+        id="progress"
+        type="range"
+        min="0"
+        max="0"
+        step="any"
+        value="0"
+        aria-label="播放时间"
+        disabled
+      />
+      <div class="control-row">
+        <button id="play" type="button" aria-label="播放" title="播放" disabled></button>
+        <output id="time">0:00 / 0:00</output>
+        <span class="spacer"></span>
+        <button
+          id="settings-toggle"
+          type="button"
+          aria-label="设置"
+          title="设置"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="settings"
+          disabled
+        ></button>
+        <button id="fullscreen" type="button" aria-label="全屏" title="全屏"></button>
+      </div>
+    </div>
+    <section id="settings" role="dialog" aria-labelledby="settings-title" hidden>
+      <h2 id="settings-title">设置</h2>
+      <label
+        ><span data-label="speed">播放速度</span
+        ><select id="speed">
+          <option value="0.5">0.5×</option>
+          <option value="0.75">0.75×</option>
+          <option value="1" selected>正常</option>
+          <option value="1.25">1.25×</option>
+          <option value="1.5">1.5×</option>
+          <option value="2">2×</option>
+        </select></label
+      >
+      <label
+        ><span data-label="theme">主题</span
+        ><select id="theme">
+          <option value="system">跟随系统</option>
+          <option value="light">浅色</option>
+          <option value="dark">深色</option>
+        </select></label
+      >
+      <label
+        ><span data-label="motion">鼠标运动</span
+        ><select id="motion">
+          <option value="linear">直线</option>
+          <option value="curve">曲线与旋转</option>
+        </select></label
+      >
+      <label
+        ><span data-label="effect">点按效果</span
+        ><select id="effect">
+          <option value="circle">圆圈</option>
+          <option value="shrink">缩小</option>
+        </select></label
+      >
+    </section>
+  </template>
+  <script type="module">
+    const host = document.querySelector('#player');
+    const viewport = document.querySelector('#viewport');
+    const message = document.querySelector('#message');
+    const params = new URLSearchParams(location.search);
+    const colorScheme = matchMedia('(prefers-color-scheme: dark)');
+    let themePreference = params.get('theme') ?? 'system';
+    let themeWork = Promise.resolve();
+    Object.defineProperty(window, 'themePreference', { get: () => themePreference });
+    const controller = new AbortController();
+    const icons = {
+      play: '<path d="m8 5 11 7-11 7Z" fill="currentColor" stroke="none"/>',
+      pause: '<path d="M8 5v14M16 5v14" stroke-width="4"/>',
+      replay: '<path d="M4 9a8 8 0 1 1 0 6M4 4v5h5"/>',
+      settings:
+        '<path d="m10 3-.6 2.1-2 .9-2-.5-2 3.4 1.5 1.6v2.4L3.4 15l2 3.5 2-.5 2 .9.6 2.1h4l.6-2.1 2-.9 2 .5 2-3.5-1.5-1.5v-2.4l1.5-1.6-2-3.4-2 .5-2-.9L14 3Z"/><circle cx="12" cy="12" r="3"/>',
+      fullscreen: '<path d="M9 4H4v5m11-5h5v5M4 15v5h5m11-5v5h-5"/>',
+      exitFullscreen: '<path d="M4 9h5V4m11 5h-5V4M9 20v-5H4m11 5v-5h5"/>',
+    };
+    let player, resize, observer, hideTimer;
+    let english = false;
+    let controls, progress, playButton, timeOutput, settings, settingsButton, fullscreenButton;
+    let scrubbing = false,
+      wasPlaying = false;
+    window.ready = false;
+    function text(zh, en) {
+      return english ? en : zh;
+    }
+    function icon(button, name) {
+      if (button.dataset.icon === name) return;
+      button.dataset.icon = name;
+      button.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${icons[name]}</svg>`;
+    }
+    function label(button, value) {
+      button.setAttribute('aria-label', value);
+      button.title = value;
+    }
+    function clock(time) {
+      const seconds = Math.floor(time);
+      const minutes = Math.floor(seconds / 60);
+      return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
+    }
+    function fit() {
+      host.style.width = `${Math.min(viewport.clientWidth, viewport.clientHeight * (1280 / 720))}px`;
+    }
+    function showControls() {
+      host.dataset.visible = '1';
+      clearTimeout(hideTimer);
+      if (player?.playing && settings.hidden) {
+        hideTimer = setTimeout(() => {
+          if (!scrubbing && !controls.querySelector(':focus-visible') && settings.hidden)
+            host.dataset.visible = '0';
+        }, 2200);
+      }
+    }
+    function closeSettings(focus = false) {
+      if (!settings) return;
+      settings.hidden = true;
+      settingsButton.setAttribute('aria-expanded', 'false');
+      if (focus) settingsButton.focus();
+      showControls();
+    }
+    function report(error) {
+      message.setAttribute('role', 'alert');
+      message.textContent = error instanceof Error ? error.message : String(error);
+      showControls();
+    }
+    function resolvedTheme() {
+      return themePreference === 'system'
+        ? colorScheme.matches
+          ? 'dark'
+          : 'light'
+        : themePreference;
+    }
+    function changeTheme(preference) {
+      const previous = themePreference;
+      themePreference = preference;
+      themeWork = themeWork
+        .catch(() => {})
+        .then(async () => {
+          if (controller.signal.aborted || themePreference !== preference) return;
+          try {
+            message.textContent = '';
+            const theme = resolvedTheme();
+            if (player.appearance.theme !== theme)
+              await player.setOptions({ theme, locale: player.appearance.locale });
+            if (controller.signal.aborted || themePreference !== preference) return;
+            document.body.dataset.theme = player.appearance.theme;
+            const url = new URL(location.href);
+            if (preference === 'system') url.searchParams.delete('theme');
+            else url.searchParams.set('theme', preference);
+            history.replaceState(null, '', url);
+            window.dispatchEvent(new Event('motion-theme-change'));
+          } catch (error) {
+            if (themePreference === preference) themePreference = previous;
+            throw error;
+          } finally {
+            if (!controller.signal.aborted) {
+              host.querySelector('#theme').value = themePreference;
+              sync();
+            }
+          }
+        });
+      return themeWork;
+    }
+    colorScheme.addEventListener(
+      'change',
+      () => {
+        if (themePreference === 'system' && window.ready)
+          void changeTheme('system').catch((error) => {
+            if (!controller.signal.aborted) report(error);
+          });
+      },
+      { signal: controller.signal },
+    );
+    function sync() {
+      if (!player || !controls?.isConnected) return;
+      const busy = host.getAttribute('aria-busy') === 'true';
+      const playing = player.playing;
+      const ended = player.duration > 0 && player.time >= player.duration;
+      host.dataset.playing = String(playing);
+      playButton.disabled = progress.disabled = settingsButton.disabled = busy;
+      for (const select of settings.querySelectorAll('select')) select.disabled = busy;
+      host.querySelector('#speed').value = String(player.playbackRate);
+      host.querySelector('#motion').value = player.cursorMotion;
+      host.querySelector('#effect').value = player.cursorClickEffect;
+      host.querySelector('#theme').value = themePreference;
+      icon(playButton, playing ? 'pause' : ended ? 'replay' : 'play');
+      label(
+        playButton,
+        playing ? text('暂停', 'Pause') : ended ? text('重播', 'Replay') : text('播放', 'Play'),
+      );
+      progress.max = String(player.duration);
+      if (!scrubbing) progress.value = String(player.time);
+      progress.style.setProperty(
+        '--progress',
+        `${player.duration ? (Number(progress.value) / player.duration) * 100 : 0}%`,
+      );
+      progress.setAttribute(
+        'aria-valuetext',
+        `${clock(Number(progress.value))} / ${clock(player.duration)}`,
+      );
+      timeOutput.value = `${clock(player.time)} / ${clock(player.duration)}`;
+      if (playing !== wasPlaying) showControls();
+      wasPlaying = playing;
+    }
+    function togglePlay() {
+      if (player.playing) player.pause();
+      else player.play();
+      showControls();
+    }
+    function createControls() {
+      host.append(document.querySelector('#control-template').content.cloneNode(true));
+      controls = host.querySelector('#controls');
+      progress = host.querySelector('#progress');
+      playButton = host.querySelector('#play');
+      timeOutput = host.querySelector('#time');
+      settings = host.querySelector('#settings');
+      settingsButton = host.querySelector('#settings-toggle');
+      fullscreenButton = host.querySelector('#fullscreen');
+      controls.setAttribute('aria-label', text('播放控件', 'Playback controls'));
+      progress.setAttribute('aria-label', text('播放时间', 'Playback time'));
+      label(settingsButton, text('设置', 'Settings'));
+      host.querySelector('#settings-title').textContent = text('设置', 'Settings');
+      icon(settingsButton, 'settings');
+      const translations = {
+        speed: ['播放速度', 'Playback speed'],
+        theme: ['主题', 'Theme'],
+        motion: ['鼠标运动', 'Cursor motion'],
+        effect: ['点按效果', 'Click effect'],
+      };
+      for (const [key, values] of Object.entries(translations))
+        host.querySelector(`[data-label="${key}"]`).textContent = text(...values);
+      if (english) {
+        for (const [selector, value] of [
+          ['#speed [value="1"]', 'Normal'],
+          ['#theme [value="system"]', 'Follow system'],
+          ['#theme [value="light"]', 'Light'],
+          ['#theme [value="dark"]', 'Dark'],
+          ['#motion [value="linear"]', 'Linear'],
+          ['#motion [value="curve"]', 'Curve + rotation'],
+          ['#effect [value="circle"]', 'Circle'],
+          ['#effect [value="shrink"]', 'Shrink'],
+        ])
+          host.querySelector(selector).textContent = value;
+      }
+      host.querySelector('#theme').value = themePreference;
+      const on = { signal: controller.signal };
+      playButton.addEventListener('click', togglePlay, on);
+      progress.addEventListener(
+        'pointerdown',
+        () => {
+          scrubbing = true;
+          showControls();
+        },
+        on,
+      );
+      window.addEventListener(
+        'pointerup',
+        () => {
+          const wasScrubbing = scrubbing;
+          scrubbing = false;
+          if (wasScrubbing) sync();
+          showControls();
+        },
+        on,
+      );
+      window.addEventListener(
+        'pointercancel',
+        () => {
+          scrubbing = false;
+          sync();
+          showControls();
+        },
+        on,
+      );
+      progress.addEventListener(
+        'input',
+        () => {
+          progress.style.setProperty(
+            '--progress',
+            `${(Number(progress.value) / player.duration) * 100}%`,
+          );
+          void player.seek(Number(progress.value)).catch(report);
+          showControls();
+        },
+        on,
+      );
+      settingsButton.addEventListener(
+        'click',
+        () => {
+          if (!settings.hidden) closeSettings();
+          else {
+            settings.hidden = false;
+            settingsButton.setAttribute('aria-expanded', 'true');
+            showControls();
+            settings.querySelector('select').focus();
+          }
+        },
+        on,
+      );
+      document.addEventListener(
+        'pointerdown',
+        (event) => {
+          if (
+            !settings.hidden &&
+            !settings.contains(event.target) &&
+            !settingsButton.contains(event.target)
+          )
+            closeSettings();
+        },
+        on,
+      );
+      document.addEventListener(
+        'keydown',
+        (event) => {
+          if (event.key === 'Escape' && !settings.hidden) {
+            event.preventDefault();
+            closeSettings(true);
+          }
+        },
+        on,
+      );
+      host.addEventListener(
+        'keydown',
+        (event) => {
+          if (event.target.closest('button,input,select')) return;
+          if (event.key === ' ' || event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            togglePlay();
+          }
+        },
+        on,
+      );
+      host.addEventListener('pointermove', showControls, on);
+      host.addEventListener('pointerdown', showControls, on);
+      controls.addEventListener('focusin', showControls, on);
+      controls.addEventListener('pointerleave', showControls, on);
+      host
+        .querySelector('#speed')
+        .addEventListener(
+          'change',
+          (event) => player.setPlaybackRate(Number(event.target.value)),
+          on,
+        );
+      host
+        .querySelector('#motion')
+        .addEventListener('change', (event) => player.setCursorMotion(event.target.value), on);
+      host
+        .querySelector('#effect')
+        .addEventListener('change', (event) => player.setCursorClickEffect(event.target.value), on);
+      host.querySelector('#theme').addEventListener(
+        'change',
+        (event) => {
+          void changeTheme(event.target.value).catch((error) => {
+            if (!controller.signal.aborted) report(error);
+          });
+        },
+        on,
+      );
+      function syncFullscreen() {
+        const active = document.fullscreenElement === viewport;
+        icon(fullscreenButton, active ? 'exitFullscreen' : 'fullscreen');
+        label(
+          fullscreenButton,
+          active ? text('退出全屏', 'Exit fullscreen') : text('全屏', 'Fullscreen'),
+        );
+      }
+      fullscreenButton.hidden = !document.fullscreenEnabled;
+      fullscreenButton.addEventListener(
+        'click',
+        async () => {
+          try {
+            if (document.fullscreenElement) await document.exitFullscreen();
+            else await viewport.requestFullscreen();
+          } catch (error) {
+            report(error);
+          }
+        },
+        on,
+      );
+      document.addEventListener(
+        'fullscreenchange',
+        () => {
+          syncFullscreen();
+          fit();
+        },
+        on,
+      );
+      syncFullscreen();
+      observer = new MutationObserver(sync);
+      observer.observe(host.querySelector(':scope > footer'), {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['disabled'],
+      });
+      observer.observe(host, { attributes: true, attributeFilter: ['aria-busy'] });
+      sync();
+      showControls();
+    }
+    window.addEventListener('pagehide', () => {
+      controller.abort();
+      resize?.disconnect();
+      observer?.disconnect();
+      clearTimeout(hideTimer);
+      player?.dispose();
+      window.ready = false;
+    });
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) location.reload();
+    });
+    try {
+      const scene = params.get('scene');
+      if (!scene) throw Error('请通过 scene 参数指定教程 JSON 地址。');
+      const sceneUrl = new URL(scene, location.href);
+      if (!['http:', 'https:'].includes(sceneUrl.protocol))
+        throw Error('教程地址必须使用 HTTP 或 HTTPS。');
+      if (!['system', 'light', 'dark'].includes(themePreference))
+        throw Error('theme 必须是 system、light 或 dark。');
+      for (const name of ['controls', 'autoplay'])
+        if (params.has(name) && !['0', '1'].includes(params.get(name)))
+          throw Error(`${name} 必须是 0 或 1。`);
+      document.body.dataset.controls = params.get('controls') ?? '1';
+      const runtimeUrl = new URL(
+        document.querySelector('meta[name="motion-runtime"]').content,
+        location.href,
+      ).href;
+      const [{ mountPlayer }, { parseBundle }, response] = await Promise.all([
+        import(new URL('modules/renderer-browser/index.js', runtimeUrl).href),
+        import(new URL('modules/authoring/bundle-schema.js', runtimeUrl).href),
+        fetch(sceneUrl, { signal: controller.signal }),
+      ]);
+      if (!response.ok) throw Error(`无法读取教程（${response.status}）。`);
+      const bundle = parseBundle(await response.json());
+      controller.signal.throwIfAborted();
+      bundle.tutorial.defaults.theme = resolvedTheme();
+      document.body.dataset.theme = bundle.tutorial.defaults.theme;
+      document.documentElement.lang = bundle.tutorial.defaults.locale;
+      english = bundle.tutorial.defaults.locale === 'en';
+      document.title = text('Blockdia Motion 播放器', 'Blockdia Motion Player');
+      host.setAttribute('aria-label', text('教程播放器', 'Tutorial player'));
+      message.textContent = '';
+      player = window.player = mountPlayer(host, bundle, {
+        runtimeUrl,
+        resourceBaseUrl: response.url,
+      });
+      resize = new ResizeObserver(fit);
+      resize.observe(viewport);
+      fit();
+      await player.ready;
+      controller.signal.throwIfAborted();
+      if (player.appearance.theme !== resolvedTheme())
+        await player.setOptions({ theme: resolvedTheme(), locale: player.appearance.locale });
+      controller.signal.throwIfAborted();
+      document.body.dataset.theme = player.appearance.theme;
+      createControls();
+      fit();
+      window.ready = true;
+      if (params.get('autoplay') === '1') player.play();
+      window.dispatchEvent(new Event('motion-ready'));
+    } catch (error) {
+      if (!controller.signal.aborted) {
+        resize?.disconnect();
+        observer?.disconnect();
+        clearTimeout(hideTimer);
+        player?.dispose();
+        window.player = undefined;
+        host.setAttribute('aria-busy', 'false');
+        report(error);
+        window.dispatchEvent(new CustomEvent('motion-error', { detail: message.textContent }));
+      }
+    }
+  </script>
+</html>

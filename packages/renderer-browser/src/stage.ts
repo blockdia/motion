@@ -72,7 +72,7 @@ export async function createStage(
   }
   let sequence = 0;
   return {
-    async renderAt(time: number, playing = false) {
+    async renderAt(time: number, playing = false, playbackRate = 1) {
       const token = ++sequence;
       for (const { clip, video } of entries) {
         const active = time >= clip.start && time < clip.start + clip.duration;
@@ -83,6 +83,7 @@ export async function createStage(
         }
         if (video.error) throw Error('Video decode failed: ' + clip.src);
         const target = clip.in + time - clip.start;
+        video.playbackRate = playbackRate;
         if (!playing) video.pause();
         if (Math.abs(video.currentTime - target) > (playing ? 0.12 : 1e-5)) {
           video.pause();
@@ -99,6 +100,9 @@ export async function createStage(
     pause() {
       sequence++;
       for (const { video } of entries) video.pause();
+    },
+    setPlaybackRate(value: number) {
+      for (const { video } of entries) video.playbackRate = value;
     },
     dispose() {
       sequence++;

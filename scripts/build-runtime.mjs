@@ -88,6 +88,13 @@ await writeFile(
   resolve(output, 'player.html'),
   `<!doctype html><meta charset="utf-8"><style>body{margin:0}#player{width:1280px}</style><div id="player"></div><script type="module">import {mountPlayer} from './modules/renderer-browser/index.js';window.mountTutorial=async(bundle,options={})=>{window.player?.dispose?.();const player=window.player=mountPlayer(document.getElementById('player'),bundle,{runtimeUrl:new URL('./',location.href).href,...options});await player.ready;return player;};</script>`,
 );
+await writeFile(
+  resolve(output, 'embed.html'),
+  (await readFile(resolve(root, 'apps/player/index.html'), 'utf8')).replace(
+    `content="/artifacts/runtime/${adapterVersion}/"`,
+    'content="./"',
+  ),
+);
 
 for (const locale of ['zh-CN', 'en'])
   for (const theme of ['light', 'dark'])

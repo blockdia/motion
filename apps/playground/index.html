@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="zh-CN">
-  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Blockdia Motion</title>
   <style>
     body {
@@ -9,32 +10,25 @@
       font-family: system-ui, sans-serif;
       color: #575e75;
     }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #202126;
+        color: #eee;
+      }
+      a {
+        color: #9abaff;
+      }
+    }
     main {
       max-width: 1280px;
       margin: auto;
     }
-    .motion-frame > svg {
+    #player {
       display: block;
       width: 100%;
-      height: auto;
-    }
-    footer {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 16px;
-      padding: 18px;
-    }
-    #player > footer input {
-      flex: 1;
-      min-width: 60px;
-    }
-    .toolbar > button,
-    #player > footer button {
-      padding: 8px 18px;
-    }
-    output {
-      min-width: 120px;
+      aspect-ratio: 16/9;
+      border: 0;
+      background: #17181b;
     }
     .toolbar {
       max-width: 1244px;
@@ -44,6 +38,9 @@
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
+    }
+    .toolbar button {
+      padding: 8px 18px;
     }
     .toolbar select {
       max-width: 100%;
@@ -55,17 +52,18 @@
       margin: 0;
       font-size: 14px;
     }
-    #status {
+    #status,
+    #error {
       max-width: 1244px;
       margin: 0 auto;
       padding: 0 18px;
+      overflow-wrap: anywhere;
     }
-    #error:empty,
-    #status:empty {
+    #status:empty,
+    #error:empty {
       display: none;
     }
     #error {
-      overflow-wrap: anywhere;
       padding: 20px;
       color: #b72929;
     }
@@ -82,172 +80,167 @@
       <option value="/artifacts/targets/tutorial.json">多角色与完整工具箱</option>
     </select>
     <button id="reload" type="button">重新加载</button>
-    <label
-      >主题
-      <select id="theme">
-        <option value="light">浅色</option>
-        <option value="dark">深色</option>
-      </select></label
-    >
-    <label
-      >语言
-      <select id="locale">
-        <option value="zh-CN">中文</option>
-        <option value="en">English</option>
-      </select></label
-    >
-    <label
-      >鼠标点按效果
-      <select id="cursor-click-effect">
-        <option value="circle">点按显示圆圈</option>
-        <option value="shrink">点按缩小鼠标</option>
-      </select></label
-    >
-    <label
-      >鼠标运动模式
-      <select id="cursor-motion">
-        <option value="linear">直线运动</option>
-        <option value="curve">曲线 + 旋转</option>
-      </select></label
-    >
+    <a id="open-player" target="_blank" rel="noopener">独立播放器</a>
+    <label for="locale">语言</label>
+    <select id="locale">
+      <option value="zh-CN">中文</option>
+      <option value="en">English</option>
+    </select>
     <p id="description"></p>
   </header>
   <p id="status" role="status" aria-live="polite"></p>
-  <main id="player" aria-label="教程播放器" aria-busy="true"></main>
+  <main aria-label="教程预览">
+    <iframe id="player" title="教程播放器" allowfullscreen aria-busy="true"></iframe>
+  </main>
   <p id="error" role="alert"></p>
   <script type="module">
-    import { mountPlayer } from '/artifacts/runtime/turbowarp-7c58de66-a2946eeb-client-1/modules/renderer-browser/index.js';
     const picker = document.querySelector('#tutorial');
-    const host = document.querySelector('#player');
+    const frame = document.querySelector('#player');
     const status = document.querySelector('#status');
     const errorBox = document.querySelector('#error');
-    const themePicker = document.querySelector('#theme');
     const localePicker = document.querySelector('#locale');
-    const cursorEffectPicker = document.querySelector('#cursor-click-effect');
-    const cursorMotionPicker = document.querySelector('#cursor-motion');
+    const openPlayer = document.querySelector('#open-player');
     const examples = {
       '/artifacts/playground/tutorial.zh-CN.json': {
         description:
-          '拖动或滚轮平移，Shift+滚轮横移，Control+滚轮缩放；继续播放恢复视角。聚焦画面后方向键平移，0 恢复。支持中英文与浅色、深色切换。',
+          '拖动或滚轮平移，Control+滚轮缩放；继续播放恢复视角。播放条的设置按钮可调整倍速、主题与鼠标效果。',
         command: 'pnpm build',
-        variants: true,
+        variants: {
+          'zh-CN': '/artifacts/playground/tutorial.zh-CN.json',
+          en: '/artifacts/playground/tutorial.en.json',
+        },
       },
       '/artifacts/all-api/tutorial.json': {
         description: '底层编辑、工具箱拖动、原生连接阴影、右键菜单、两种删除、自动输入与角色点击。',
-        source: 'all-api',
-        output: 'all-api',
+        command: 'pnpm example:all-api',
       },
       '/artifacts/structural-editing/tutorial.json': {
         description: '容器连接、拆分与删除、长文本输入、模拟输入法、字段菜单和高亮标注。',
-        source: 'structural-editing',
-        output: 'structural-editing',
+        command: 'pnpm example:structural',
       },
       '/artifacts/basic-editing/tutorial.json': {
         description: '从工具箱拖出积木、连接、修改参数与粘贴。',
-        source: 'basic-editing',
-        output: 'basic-editing',
+        command: 'pnpm example:basic',
       },
       '/artifacts/targets/tutorial.json': {
         description: '切换舞台与角色，浏览各自的完整工具箱和局部数据。',
         command: 'pnpm example:targets',
       },
     };
-    const initialUrl = new URLSearchParams(location.search).get('scene') || picker.value;
-    if (![...picker.options].some((option) => option.value === initialUrl)) {
-      picker.add(new Option('自定义教程', initialUrl));
+    const params = new URLSearchParams(location.search);
+    const initialUrl = params.get('scene') || picker.value;
+    if (initialUrl === '/artifacts/playground/tutorial.en.json') {
+      picker.value = '/artifacts/playground/tutorial.zh-CN.json';
+      localePicker.value = 'en';
+    } else {
+      if (![...picker.options].some((option) => option.value === initialUrl))
+        picker.add(new Option('自定义教程', initialUrl));
+      picker.value = initialUrl;
     }
-    picker.value = initialUrl;
-    let controller;
-    let player;
-    let generation = 0;
-    async function loadScene(url) {
+    let generation = 0,
+      life;
+    let themePreference = params.get('theme') ?? 'system';
+    window.ready = false;
+    function loadScene(preserve = false) {
+      const previous = window.ready ? frame.contentWindow.player : undefined;
+      const snapshot =
+        preserve && previous
+          ? {
+              time: previous.time,
+              rate: previous.playbackRate,
+              motion: previous.cursorMotion,
+              effect: previous.cursorClickEffect,
+            }
+          : undefined;
+      if (window.ready) themePreference = frame.contentWindow.themePreference;
       const current = ++generation;
-      controller?.abort();
-      controller = new AbortController();
+      life?.abort();
+      life = new AbortController();
       window.ready = false;
-      player?.dispose();
-      player = window.player = undefined;
-      host.replaceChildren();
-      host.setAttribute('aria-busy', 'true');
+      frame.setAttribute('aria-busy', 'true');
       errorBox.textContent = '';
       status.textContent = '正在加载教程…';
-      const example = Object.hasOwn(examples, url) ? examples[url] : undefined;
+      const example = Object.hasOwn(examples, picker.value) ? examples[picker.value] : undefined;
+      const scene = example?.variants?.[localePicker.value] ?? picker.value;
+      localePicker.disabled = !example?.variants;
       document.querySelector('#description').textContent =
         example?.description || '预览指定的已编译教程。';
-      try {
-        const response = await fetch(url, { signal: controller.signal, cache: 'no-store' });
-        if (!response.ok) {
-          const command =
-            example?.command ||
-            (example?.source
-              ? `pnpm build:packages && pnpm motion compile examples/${example.source}/tutorial.ts artifacts/${example.output}/tutorial.json`
-              : '请检查 scene 参数指定的地址');
-          throw Error(`无法读取教程（${response.status}）。${command}`);
+      const url = new URL('/player/', location.href);
+      url.searchParams.set('scene', new URL(scene, location.href).href);
+      if (themePreference !== 'system') url.searchParams.set('theme', themePreference);
+      openPlayer.href = url.href;
+      const locationUrl = new URL(location.href);
+      locationUrl.searchParams.set('scene', scene);
+      if (themePreference === 'system') locationUrl.searchParams.delete('theme');
+      else locationUrl.searchParams.set('theme', themePreference);
+      history.replaceState(null, '', locationUrl);
+      frame.onload = () => {
+        if (current !== generation) return;
+        const child = frame.contentWindow;
+        if (child.location.href !== url.href) return;
+        const on = { signal: life.signal };
+        async function ready() {
+          if (current !== generation) return;
+          try {
+            if (snapshot) {
+              child.player.setPlaybackRate(snapshot.rate);
+              child.player.setCursorMotion(snapshot.motion);
+              child.player.setCursorClickEffect(snapshot.effect);
+              await child.player.seek(snapshot.time);
+            }
+            if (current !== generation) return;
+            localePicker.value = child.player.appearance.locale;
+            window.ready = true;
+            frame.setAttribute('aria-busy', 'false');
+            status.textContent = '';
+          } catch (error) {
+            failed({ detail: error.message });
+          }
         }
-        const compiled = await response.json();
-        if (current !== generation) return;
-        player = window.player = mountPlayer(host, compiled, {
-          resourceBaseUrl: new URL(url, location.href).href,
-          cursorClickEffect: cursorEffectPicker.value,
-          cursorMotion: cursorMotionPicker.value,
-          async loadVariant(options, signal) {
-            if (!example?.variants) throw Error('此示例未准备外观变体，请选择中英文与舞台视频示例');
-            const response = await fetch(`/artifacts/playground/tutorial.${options.locale}.json`, {
-              signal,
-            });
-            if (!response.ok) throw Error('外观资源未准备，请运行 pnpm build');
-            const scene = await response.json();
-            return scene;
+        function failed(event) {
+          if (current !== generation) return;
+          frame.setAttribute('aria-busy', 'false');
+          status.textContent = '';
+          errorBox.textContent = `${event.detail}${example?.command ? '。请运行 ' + example.command : ''}`;
+        }
+        child.addEventListener('motion-ready', ready, on);
+        child.addEventListener('motion-error', failed, on);
+        child.addEventListener(
+          'motion-theme-change',
+          () => {
+            if (current !== generation) return;
+            themePreference = child.themePreference;
+            openPlayer.href = child.location.href;
+            const locationUrl = new URL(location.href);
+            if (themePreference === 'system') locationUrl.searchParams.delete('theme');
+            else locationUrl.searchParams.set('theme', themePreference);
+            history.replaceState(null, '', locationUrl);
           },
-        });
-        await player.ready;
-        if (current !== generation) return;
-        themePicker.value = compiled.tutorial.defaults.theme;
-        localePicker.value = compiled.tutorial.defaults.locale;
-        localePicker.disabled = !example?.variants;
-        themePicker.disabled = false;
-        window.ready = true;
-        const locationUrl = new URL(location.href);
-        locationUrl.searchParams.set('scene', url);
-        history.replaceState(null, '', locationUrl);
-        status.textContent = '';
-      } catch (error) {
-        if (current !== generation) return;
-        player?.dispose();
-        host.replaceChildren();
-        errorBox.textContent = error.message;
-        status.textContent = '';
-      } finally {
-        if (current === generation) host.setAttribute('aria-busy', 'false');
-      }
+          on,
+        );
+        if (child.ready) void ready();
+        else if (child.document.querySelector('#message')?.getAttribute('role') === 'alert')
+          failed({ detail: child.document.querySelector('#message').textContent });
+      };
+      frame.src = url.href;
     }
-    async function changeAppearance() {
-      const currentPlayer = player;
-      if (!currentPlayer) return;
-      try {
-        await currentPlayer.setOptions({ theme: themePicker.value, locale: localePicker.value });
-      } catch (error) {
-        if (player !== currentPlayer) return;
-        themePicker.value = currentPlayer.appearance.theme;
-        localePicker.value = currentPlayer.appearance.locale;
+    openPlayer.addEventListener('click', () => {
+      if (window.ready) {
+        const url = new URL(frame.contentWindow.location.href);
+        openPlayer.href = url.href;
       }
-    }
-    cursorMotionPicker.addEventListener('change', () => {
-      player?.setCursorMotion(cursorMotionPicker.value);
     });
-    cursorEffectPicker.addEventListener('change', () => {
-      player?.setCursorClickEffect(cursorEffectPicker.value);
-    });
-    themePicker.addEventListener('change', changeAppearance);
-    localePicker.addEventListener('change', changeAppearance);
+    picker.addEventListener('change', () => loadScene());
+    document.querySelector('#reload').addEventListener('click', () => loadScene());
+    localePicker.addEventListener('change', () => loadScene(true));
     window.addEventListener('pagehide', () => {
       generation++;
-      controller?.abort();
-      player?.dispose();
+      life?.abort();
+      window.ready = false;
     });
-    window.renderAt = (time) => window.player?.seek(time);
-    picker.addEventListener('change', () => loadScene(picker.value));
-    document.querySelector('#reload').addEventListener('click', () => loadScene(picker.value));
-    await loadScene(initialUrl);
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) location.reload();
+    });
+    loadScene();
   </script>
 </html>

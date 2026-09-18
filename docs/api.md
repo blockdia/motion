@@ -65,6 +65,7 @@ const player = mountPlayer(document.querySelector('#player'), bundle, {
   // font: { family: 'Tutorial Font', url: '/fonts/tutorial.woff2' },
   cursorMotion: 'curve',
   cursorClickEffect: 'shrink',
+  playbackRate: 1,
   async loadVariant({ locale }, signal) {
     const response = await fetch(`/tutorials/example/tutorial.${locale}.json`, { signal });
     if (!response.ok) throw Error('Language variant unavailable');
@@ -78,6 +79,7 @@ player.pause();
 await player.setOptions({ locale: 'zh-CN', theme: 'dark' });
 player.setCursorMotion('linear');
 player.setCursorClickEffect('circle');
+player.setPlaybackRate(1.5);
 console.log(player.time, player.duration, player.playing, player.view);
 player.resetView();
 player.dispose();
@@ -88,6 +90,8 @@ player.dispose();
 `resourceBaseUrl` 是教程文件 URL 或以 `/` 结尾的资源目录 URL；语言变体的相对媒体路径仍使用这个资源基址。运行时必须同源，视频和自定义字体跨域时由资源服务提供相应 CORS 响应。视频服务应支持字节 Range 请求，以便精确跳转。
 
 `cursorClickEffect` 可选 `circle`（默认）或 `shrink`；`cursorMotion` 可选 `linear`（默认）或 `curve`。曲线由时间确定，拖拽保持抓取偏移，不依赖帧率积分。继续播放和跳转恢复教程视角。
+
+`playbackRate` 默认为 `1`，支持 `0.25` 至 `4` 的有限数值；可通过 `setPlaybackRate()` 修改并通过 `player.playbackRate` 读取。教程时钟和舞台视频同步变速，跳转、主题切换保留倍速。导出按教程时间采样，不受交互播放倍速影响。
 
 舞台视频声明在教程根节点，片段按开始时间排序，不重叠：
 
@@ -100,7 +104,7 @@ stage: {
 }
 ```
 
-`start` 是教程秒数，`in` 是媒体起点，`duration` 是播放时长；区间为 `[start, start + duration)`，片段外显示舞台底色。视频固定一倍速、静音、等比例容纳；教程总时长覆盖最后一个片段。不存在的媒体、越界和解码失败会报错，缓冲时暂停教程时钟。CLI 编译会将相对媒体路径重定位到输出文件；发布时应一同复制媒体。
+`start` 是教程秒数，`in` 是媒体起点，`duration` 是播放时长；区间为 `[start, start + duration)`，片段外显示舞台底色。视频跟随播放器倍速、静音、等比例容纳；教程总时长覆盖最后一个片段。不存在的媒体、越界和解码失败会报错，缓冲时暂停教程时钟。CLI 编译会将相对媒体路径重定位到输出文件；发布时应一同复制媒体。
 
 Node 的 `exportVideo(bundle, { output, font, fps, resourceBaseUrl })` 来自 `@blockdia-motion/renderer-video`，其中 `font` 是必填的本地字体路径。默认使用 UI 图层截图缓存、SVG 栅格素材缓存与逐帧 RGBA 合成，再由 FFmpeg 编码；`resourceBaseUrl` 相对本地静态服务根目录解析。首轮不输出音轨。
 

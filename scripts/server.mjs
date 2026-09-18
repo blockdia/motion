@@ -9,7 +9,15 @@ export async function serve(port = 0, options = {}) {
       const path =
         url === '/font.ttf'
           ? options.font
-          : resolve(root, '.' + (url === '/' ? '/apps/playground/index.html' : url));
+          : resolve(
+              root,
+              '.' +
+                (url === '/'
+                  ? '/apps/playground/index.html'
+                  : url === '/player' || url === '/player/'
+                    ? '/apps/player/index.html'
+                    : url),
+            );
       if (!path) {
         res.writeHead(404).end('Not found');
         return;

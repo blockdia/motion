@@ -21,6 +21,7 @@ export type { WorkspaceView, RenderOptions } from './dom.js';
 export type { CursorMotion } from '@blockdia-motion/core';
 export type CursorClickEffect = 'circle' | 'shrink';
 export interface PlayerOptions extends RenderOptions {
+  playbackRate?: number;
   font?: FontOptions;
   resourceBaseUrl?: string;
   runtimeUrl?: string;
@@ -47,7 +48,12 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
   let bundle = parseBundle(input),
     font = options.font ?? { family: '"Helvetica Neue", Helvetica, Arial, sans-serif' };
   let cursorMotion = options.cursorMotion ?? 'linear',
-    cursorClickEffect = options.cursorClickEffect ?? 'circle';
+    cursorClickEffect = options.cursorClickEffect ?? 'circle',
+    playbackRate = options.playbackRate ?? 1;
+  function checkRate(value: number) {
+    if (!Number.isFinite(value) || value < 0.25 || value > 4)
+      fail('UNSUPPORTED', 'player', 'Playback rate must be between 0.25 and 4');
+  }
   function checkMotion(v: CursorMotion) {
     if (!['linear', 'curve'].includes(v)) fail('UNSUPPORTED', 'player', 'Unknown cursor motion');
   }
@@ -57,6 +63,7 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
   }
   checkMotion(cursorMotion);
   checkEffect(cursorClickEffect);
+  checkRate(playbackRate);
   const base = new URL(options.resourceBaseUrl ?? '.', document.baseURI).href;
   const runtime = new URL(
     options.runtimeUrl ?? `/artifacts/runtime/${adapterVersion}/`,
@@ -208,7 +215,7 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
       );
       const nextTime = Math.min(time, scene.duration);
       freshRenderer.draw(nextTime, { x: 0, y: 0, zoom: 1 }, { cursorMotion, cursorClickEffect });
-      await freshStage.renderAt(nextTime);
+      await freshStage.renderAt(nextTime, false, playbackRate);
       controller.signal.throwIfAborted();
       stage?.dispose();
       renderer?.dispose();
@@ -276,7 +283,7 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
         if (pending) throw Error('Tutorial preparation in progress');
         time = Math.min(t, compiled!.duration);
         resetView();
-        await stage!.renderAt(time);
+        await stage!.renderAt(time, false, playbackRate);
         if (disposed || generation !== epoch) return;
         await new Promise<void>((r) => requestAnimationFrame(() => r()));
       });
@@ -285,10 +292,13 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
   }
   async function tick(now: number, token: number) {
     if (!playing || disposed || token !== epoch || !compiled) return;
-    const next = Math.min(compiled.duration, time + Math.max(0, now - lastClock) / 1000);
+    const next = Math.min(
+      compiled.duration,
+      time + (Math.max(0, now - lastClock) / 1000) * playbackRate,
+    );
     const started = performance.now();
     try {
-      await stage!.renderAt(next, true);
+      await stage!.renderAt(next, true, playbackRate);
       if (!playing || disposed || token !== epoch) return;
       time = next;
       render();
@@ -296,7 +306,7 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
       if (lastClock - started < 50) lastClock = now;
       if (time === compiled.duration) {
         pause();
-        await stage!.renderAt(time);
+        await stage!.renderAt(time, false, playbackRate);
         return;
       }
       request = requestAnimationFrame((n) => void tick(n, token));
@@ -497,6 +507,16 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
       checkEffect(v);
       cursorClickEffect = v;
       render();
+    },
+    setPlaybackRate(value: number) {
+      checkRate(value);
+      playbackRate = value;
+      stage?.setPlaybackRate(value);
+      lastClock = performance.now();
+      render();
+    },
+    get playbackRate() {
+      return playbackRate;
     },
     get time() {
       return time;
