@@ -15,14 +15,16 @@
     "motion": "node packages/cli/dist/index.js",
     "p1b": "pnpm runtime:build && node scripts/p1b.mjs",
     "test:integration": "pnpm runtime:build && node scripts/stage-fixture.mjs && node --test --test-concurrency=1 tests/integration/*.test.mjs",
-    "format:check": "prettier --check \"packages/**/*.{ts,js,json,html}\" \"apps/**/*.html\" \"examples/**/*.{ts,json}\" \"scripts/p1b.mjs\" \"tests/compiler.test.mjs\" \"tests/integration/*.test.mjs\" \"docs/p1b.md\" \"scripts/p1c*.mjs\" \"scripts/bootstrap-catalog.mjs\" \"tests/fixtures/*.mjs\" \"docs/p1c.md\" \"docs/p2.md\" \"tests/typing.test.mjs\" \"docs/p3.md\" \"scripts/p3.mjs\" \"scripts/p3-reference.mjs\" \"scripts/{build-runtime,build-shell,client-smoke,migration-cost,stage-fixture,server}.mjs\" \"tests/bundle.test.mjs\" \"tests/integration/helpers.mjs\" \"docs/client-rendering*.md\" \"docs/api.md\" \"README.md\"",
+    "format:check": "prettier --check \"packages/**/*.{ts,js,json,html}\" \"apps/**/*.html\" \"examples/**/*.{ts,json}\" \"scripts/p1b.mjs\" \"tests/compiler.test.mjs\" \"tests/integration/*.test.mjs\" \"docs/p1b.md\" \"scripts/p1c*.mjs\" \"scripts/bootstrap-catalog.mjs\" \"tests/fixtures/*.mjs\" \"docs/p1c.md\" \"docs/p2.md\" \"tests/typing.test.mjs\" \"docs/p3.md\" \"scripts/p3.mjs\" \"scripts/p3-reference.mjs\" \"scripts/{build-runtime,build-shell,client-smoke,migration-cost,stage-fixture,server}.mjs\" \"tests/bundle.test.mjs\" \"tests/integration/helpers.mjs\" \"docs/client-rendering*.md\" \"docs/api.md\" \"README.md\" \"scripts/p4*.mjs\" \"tests/video.test.mjs\" \"docs/p4.md\" \"docs/p4-{baseline,comparison,native}/*.json\"",
     "p1c:bootstrap": "node scripts/bootstrap-catalog.mjs",
     "p1c": "pnpm runtime:build && node scripts/p1c.mjs",
     "p2": "pnpm runtime:build && pnpm motion compile examples/structural-editing/tutorial.ts artifacts/p2/tutorial.json",
     "example:all-api": "pnpm build && pnpm motion compile examples/all-api/tutorial.ts artifacts/all-api/tutorial.json",
     "p3": "pnpm runtime:build && node scripts/p3.mjs",
     "runtime:build": "pnpm build && node scripts/build-runtime.mjs",
-    "shell:build": "pnpm build && node scripts/build-shell.mjs"
+    "shell:build": "pnpm build && node scripts/build-shell.mjs",
+    "p4": "pnpm runtime:build && node scripts/p4.mjs",
+    "p4:compare": "pnpm runtime:build && node scripts/p4-compare.mjs"
   },
   "engines": {
     "node": ">=22.18"

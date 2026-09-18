@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createServer } from 'node:http';
+import { readFile } from 'node:fs/promises';
 import { openBrowser } from '../../packages/asset-builder/dist/index.js';
 import { bundleTutorial } from '../../packages/authoring/dist/bundle.js';
 import { exportVideo } from '../../packages/renderer-video/dist/index.js';
@@ -16,6 +18,78 @@ const spec = {
     ],
   },
 };
+test(
+  'composite export reads CORS-enabled cross-origin stage pixels',
+  { timeout: 30000 },
+  async () => {
+    const data = await readFile('artifacts/media/stage.mp4');
+    const server = createServer((req, res) => {
+      const headers = {
+        'Content-Type': 'video/mp4',
+        'Access-Control-Allow-Origin': '*',
+        'Accept-Ranges': 'bytes',
+      };
+      const range = req.headers.range?.match(/^bytes=(\d+)-(\d*)$/);
+      if (range) {
+        const start = Number(range[1]);
+        const end = range[2] ? Math.min(Number(range[2]), data.length - 1) : data.length - 1;
+        res.writeHead(206, {
+          ...headers,
+          'Content-Range': `bytes ${start}-${end}/${data.length}`,
+          'Content-Length': end - start + 1,
+        });
+        res.end(data.subarray(start, end + 1));
+      } else {
+        res.writeHead(200, { ...headers, 'Content-Length': data.length });
+        res.end(data);
+      }
+    });
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', resolve);
+    });
+    try {
+      const b = await bundleTutorial({
+        ...spec,
+        steps: [{ op: 'wait', duration: 0.5 }],
+        stage: {
+          clips: [
+            {
+              src: `http://127.0.0.1:${server.address().port}/stage.mp4`,
+              start: 0,
+              in: 1,
+              duration: 0.5,
+            },
+          ],
+        },
+      });
+      const output = 'artifacts/migration/stage-cors.mp4';
+      const report = await exportVideo(b, { output, font, fps: 4, width: 640, height: 360 });
+      assert.equal(report.layers.mediaFrames, 2);
+      assert.equal(report.frames, 2);
+      const rgb = execFileSync('ffmpeg', [
+        '-v',
+        'error',
+        '-i',
+        output,
+        '-frames:v',
+        '1',
+        '-vf',
+        'crop=2:2:500:100,scale=1:1',
+        '-f',
+        'rawvideo',
+        '-pix_fmt',
+        'rgb24',
+        'pipe:1',
+      ]);
+      assert.ok(rgb[1] > 240 && rgb[0] < 10 && rgb[2] < 10);
+    } finally {
+      await new Promise((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+  },
+);
 test('stage video trim, gaps, shuffled exact seeking, duration and browser export', async () => {
   const b = await bundleTutorial(spec),
     h = await openBrowser();
@@ -96,6 +170,11 @@ test('stage video trim, gaps, shuffled exact seeking, duration and browser expor
   }
   const output = 'artifacts/migration/stage-export.mp4';
   const report = await exportVideo(b, { output, font, fps: 10 });
+  assert.equal(report.backend, 'composite');
+  assert.equal(report.nodePeakRssBytes, report.memory.nodePeakRssBytes);
+  assert.equal(report.cache.enabled, true);
+  assert.equal(report.cache.screenshots, 0);
+  assert.equal(report.layers.mediaFrames, 20);
   assert.equal(report.frames, 25);
   assert.equal(report.encodedDuration, 2.5);
   const info = JSON.parse(

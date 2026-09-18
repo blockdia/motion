@@ -87,7 +87,7 @@ player.dispose();
 
 语言变化需要对应语义教程的加载器；主题和字体变化复用当前语义教程，在临时 iframe 中重新准备。切换暂停并保留时间，准备成功后替换；失败保留旧画面，Promise 拒绝。先等待 `ready` 再操作播放器。销毁释放监听器、视频、字体和准备环境。
 
-`resourceBaseUrl` 是教程文件 URL 或以 `/` 结尾的资源目录 URL；语言变体的相对媒体路径仍使用这个资源基址。运行时必须同源，视频和自定义字体跨域时由资源服务提供相应 CORS 响应。
+`resourceBaseUrl` 是教程文件 URL 或以 `/` 结尾的资源目录 URL；语言变体的相对媒体路径仍使用这个资源基址。运行时必须同源，视频和自定义字体跨域时由资源服务提供相应 CORS 响应。视频服务应支持字节 Range 请求，以便精确跳转。
 
 `cursorClickEffect` 可选 `circle`（默认）或 `shrink`；`cursorMotion` 可选 `linear`（默认）或 `curve`。曲线由时间确定，拖拽保持抓取偏移，不依赖帧率积分。继续播放和跳转恢复教程视角。
 
@@ -104,6 +104,46 @@ stage: {
 
 `start` 是教程秒数，`in` 是媒体起点，`duration` 是播放时长；区间为 `[start, start + duration)`，片段外显示舞台底色。视频固定一倍速、静音、等比例容纳；教程总时长覆盖最后一个片段。不存在的媒体、越界和解码失败会报错，缓冲时暂停教程时钟。CLI 编译会将相对媒体路径重定位到输出文件；发布时应一同复制媒体。
 
-Node 的 `exportVideo(bundle, { output, font, fps, resourceBaseUrl })` 来自 `@blockdia-motion/renderer-video`，其中 `font` 是必填的本地字体路径。导出逐帧调用浏览器播放器并截图，再由 FFmpeg 编码；`resourceBaseUrl` 相对本地静态服务根目录解析。首轮不输出音轨。
+Node 的 `exportVideo(bundle, { output, font, fps, resourceBaseUrl })` 来自 `@blockdia-motion/renderer-video`，其中 `font` 是必填的本地字体路径。默认使用 UI 图层截图缓存、SVG 栅格素材缓存与逐帧 RGBA 合成，再由 FFmpeg 编码；`resourceBaseUrl` 相对本地静态服务根目录解析。首轮不输出音轨。
 
 `CompiledScene`、`compile(spec, adapter)` 和素材 manifest 是准备器内部协议，用于语义与布局测试，不是发布格式。原整场 `frameSvg` 和 `rasterFrame` API 已移除。
+
+## 导出选项与取消
+
+```ts
+const controller = new AbortController();
+await exportVideo(bundle, {
+  output: '/absolute/path/tutorial.mp4',
+  font: '/absolute/path/font.ttf',
+  fps: 30,
+  backend: 'composite', // 'screenshot' 可用于画面参考和性能对比
+  width: 1920,
+  height: 1080,
+  concurrency: 1,
+  cacheBytes: 32 * 1024 * 1024,
+  encoderThreads: 2,
+  signal: controller.signal,
+  onProgress: ({ phase, completed, frames }) => console.log(phase, completed, frames),
+});
+// 可在导出进行时从另一事件调用 controller.abort()。
+```
+
+默认 `backend: 'composite'`，输出 1280×720/30 fps。尺寸必须是偶数、16:9，最多 3840×2160；逻辑画布仍为 1280×720，整体缩放。帧率为整数 1–120，并发为整数 1–4，缓存为 0–256 MiB，编码线程为整数 1–16。
+
+合成后端按 UI 状态缓存 Chrome 的透明局部截图，使用指定字体栅格化 SVG，再通过 `@napi-rs/canvas` 的 Skia Canvas 2D 按时间快照合成 RGBA 帧。32 MiB 默认预算约束动态图层 LRU；固定背景、飞出栏底色、控件和光标另计为 `fixedLayerBytes`，可复用帧表面池、独立 RGBA 帧队列和原生分配器开销另计。`cacheBytes: 0` 关闭动态图层缓存，固定图层仍保留。舞台视频逐帧解码，UI/SVG 缓存继续使用。有限并发合成复用一个浏览器页面，UI 捕获和舞台解码串行化；原生绘制调用并不因此成为多线程。
+
+`backend: 'screenshot'` 保留整场 Chrome 截图参考后端，每个并发页面独立准备。其缓存保存 PNG 整帧，有舞台视频时关闭。两种后端都按帧序流式编码，最多一个并发批次等待写入；PNG 帧与 RGBA 帧的字节量不同。
+
+`onProgress` 的阶段为 `prepared`、`frames`、`encoding`；回调抛错会终止导出并清理。取消或失败会关闭 Chrome、等待编码器结束、移除临时 MP4；成功后原子替换输出。API 调用者须先创建输出父目录。报告包含准备、合成、管道背压、编码 CPU/收尾、缓存和队列峰值以及进程树 RSS；字段口径与环境预算见 [P4](p4.md)。
+
+CLI 保留位置参数帧率，并支持：
+
+```sh
+pnpm motion export artifacts/all-api/tutorial.json artifacts/all-api/tutorial.mp4 30 \
+  --font /absolute/path/font.ttf --size 1920x1080 \
+  --concurrency 1 --cache-mib 32 --encoder-threads 2 --backend composite
+```
+
+Ctrl+C / SIGTERM 取消导出并清理临时资源。播放器的 `preparationStats` 提供当前已成功准备场景的素材数量、SVG 内容 UTF-8 字节数和素材准备耗时；返回副本，卸载后为 `undefined`。
+
+`player.getPreparedScene()` 在准备成功后提供当前 `CompiledScene` 的深拷贝，供同源导出桥接使用；准备中或卸载后抛错。该对象是内部布局协议，不应用作发布教程格式。

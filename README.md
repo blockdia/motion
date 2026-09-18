@@ -34,7 +34,8 @@ pnpm test:integration
 - [教程 API 与播放器](docs/api.md)
 - [客户端渲染、外壳来源与限制](docs/client-rendering.md)
 - [迁移成本实测](docs/client-rendering-cost.md)
+- [P4 导出性能、预算与长视频基准](docs/p4.md)
 - [全部 API 示例](examples/all-api/tutorial.ts)
 - [第三方来源与许可](THIRD_PARTY_NOTICES.md)
 
-P0–P3 文档保留为历史设计和验收记录，当前格式及入口以以上文档为准。
+P0–P3 文档保留为历史设计和验收记录；P4 已实现 UI/SVG 缓存与逐帧图片合成，并保留整场截图后端用于对比。当前格式及入口以以上文档为准。

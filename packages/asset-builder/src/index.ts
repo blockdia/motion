@@ -14,25 +14,29 @@ export async function openBrowser(options: { root?: string; font?: string } = {}
         process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
       headless: true,
     });
-    const page = await browser.newPage({
+    const context = await browser.newContext({
       viewport: { width: 1280, height: 720 },
       deviceScaleFactor: 1,
     });
+    const page = await context.newPage();
     await page.goto(`${server.url}/artifacts/runtime/${runtimeVersion}/prepare.html`);
     if (!(await page.evaluate(() => typeof (window as any).prepareTutorial === 'function')))
       throw Error('Missing preparation runtime; run runtime:build');
     const instance = browser;
+    let closing: Promise<void> | undefined;
     return {
       server,
       browser,
       page,
       runtimeUrl: `${server.url}/artifacts/runtime/${runtimeVersion}/`,
-      async close() {
-        try {
-          await instance.close();
-        } finally {
-          await server.close();
-        }
+      close() {
+        return (closing ??= (async () => {
+          try {
+            await instance.close();
+          } finally {
+            await server.close();
+          }
+        })());
       },
     };
   } catch (error) {

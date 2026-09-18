@@ -89,6 +89,9 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
   let compiled: CompiledScene | undefined,
     renderer: ReturnType<typeof createSceneRenderer> | undefined,
     stage: Awaited<ReturnType<typeof createStage>> | undefined;
+  let preparationStats:
+    | { assetPreparationMs: number; resources: number; resourceContentBytes: number }
+    | undefined;
   let root: HTMLElement | undefined,
     activeLife: AbortController | undefined,
     pending: AbortController | undefined;
@@ -187,12 +190,14 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
         next.tutorial.defaults.locale,
         template,
       );
+      const assetStart = performance.now();
       const scene = await prepareInBrowser(next, {
         runtimeUrl: runtime,
         font: resolvedFont,
         layout: shell.layout,
         signal: controller.signal,
       });
+      const assetPreparationMs = performance.now() - assetStart;
       controller.signal.throwIfAborted();
       freshRenderer = createSceneRenderer(shell, scene);
       freshStage = await createStage(
@@ -215,6 +220,15 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
       frame.append(root);
       container.remove();
       compiled = scene;
+      const encoder = new TextEncoder();
+      preparationStats = {
+        assetPreparationMs,
+        resources: Object.keys(scene.manifest.resources).length,
+        resourceContentBytes: Object.values(scene.manifest.resources).reduce(
+          (sum, resource) => sum + encoder.encode(resource.content).length,
+          0,
+        ),
+      };
       renderer = freshRenderer;
       stage = freshStage;
       activeLife = controller;
@@ -490,6 +504,14 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
     get duration() {
       return compiled?.duration ?? 0;
     },
+    get preparationStats() {
+      return preparationStats ? { ...preparationStats } : undefined;
+    },
+    /** Detached export data: callers cannot mutate the active player's scene. */
+    getPreparedScene(): CompiledScene {
+      if (!compiled || pending || disposed) throw Error('Player scene is not ready');
+      return structuredClone(compiled);
+    },
     get playing() {
       return playing;
     },
@@ -521,6 +543,7 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
       for (const face of fonts) document.fonts.delete(face);
       fonts.clear();
       compiled = undefined;
+      preparationStats = undefined;
       renderer = undefined;
       stage = undefined;
       root = undefined;

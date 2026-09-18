@@ -1,0 +1,508 @@
+{
+  "environment": {
+    "node": "v24.18.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "release": "27.0.0",
+    "cpu": "Apple M5",
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+    "sources": {
+      "packages/renderer-video/src/index.ts": "adf0972356a88b1bd37c71e73b5dc422f89b78ea43b3bfcbf7afa398063b5e76",
+      "packages/renderer-video/src/cache.ts": "fe0310f0989c703af4d8597e150b9b9708e76bcbc7a27cb99ec20fbdf3db0fda",
+      "packages/renderer-video/src/memory.ts": "ce3aad03ae805f1f9f2f21627c552e26fd046d7002ae40cae1d873b7d3a57189",
+      "scripts/p4.mjs": "23d336a141bc8d56d9a78f0471d285eb90fcb03a665dcf5f7e32d156d431670f"
+    }
+  },
+  "quick": false,
+  "budgets": {
+    "processTreePeakRssBytes": 2684354560,
+    "preparationMs": 30000,
+    "compositionMsPerFrame720": 110,
+    "repeatPeakGrowthBytes": 536870912
+  },
+  "cases": [
+    {
+      "name": "basic-360-15",
+      "budgetPassed": true,
+      "keyframeDigest": "0ab361a371ddbc46557de76fdee7feea415724d6b4a26bfb1528304cb8d85ec3",
+      "bundleBytes": 1569,
+      "fps": 15,
+      "frames": 108,
+      "tutorialDuration": 7.1578192940983945,
+      "encodedDuration": 7.2,
+      "width": 640,
+      "height": 360,
+      "concurrency": 1,
+      "encoderThreads": 2,
+      "encoding": {
+        "cpuUserMs": 264,
+        "cpuSystemMs": 16,
+        "wallMs": 1276
+      },
+      "preparation": [
+        {
+          "assetPreparationMs": 3145.1000000089407,
+          "resources": 180,
+          "resourceContentBytes": 446463
+        }
+      ],
+      "preparationMs": 4105.995375,
+      "compositionMs": 6052.685129000007,
+      "compositionWorkerMs": 6052.115250000002,
+      "pipeAndBackpressureMs": 1.3292930000088745,
+      "encoderFlushMs": 23.308624999999665,
+      "exportMs": 10210.599041,
+      "nodePeakRssBytes": 237600768,
+      "memory": {
+        "sampleIntervalMs": 250,
+        "samples": 43,
+        "nodePeakRssBytes": 237600768,
+        "browserPeakRssBytes": 1229340672,
+        "encoderPeakRssBytes": 79675392,
+        "processTreePeakRssBytes": 1497006080,
+        "processTreeAvailable": true
+      },
+      "queue": {
+        "peakFrames": 1,
+        "peakBytes": 35172
+      },
+      "cache": {
+        "enabled": true,
+        "limitBytes": 33554432,
+        "peakBytes": 2773751,
+        "hits": 23,
+        "misses": 85,
+        "screenshots": 85
+      },
+      "source": {
+        "browser": "153.0.8010.50",
+        "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+        "adapterVersion": "turbowarp-7c58de66-a2946eeb-client-1",
+        "locale": "zh-CN",
+        "theme": "light"
+      },
+      "probe": {
+        "frames": 108,
+        "width": 640,
+        "height": 360,
+        "duration": 7.2
+      },
+      "throughputFps": 17.84332039387669
+    },
+    {
+      "name": "basic-720-30",
+      "budgetPassed": true,
+      "keyframeDigest": "7a1d7de113a3ae51ad9cbf372570bfe3d8f5b72c74d1e9482e6a342ff91809ad",
+      "bundleBytes": 1569,
+      "fps": 30,
+      "frames": 215,
+      "tutorialDuration": 7.1578192940983945,
+      "encodedDuration": 7.166666666666667,
+      "width": 1280,
+      "height": 720,
+      "concurrency": 1,
+      "encoderThreads": 2,
+      "encoding": {
+        "cpuUserMs": 1787,
+        "cpuSystemMs": 81,
+        "wallMs": 7967
+      },
+      "preparation": [
+        {
+          "assetPreparationMs": 3084,
+          "resources": 180,
+          "resourceContentBytes": 446463
+        }
+      ],
+      "preparationMs": 3498.895375,
+      "compositionMs": 12154.576710000012,
+      "compositionWorkerMs": 12153.782844999974,
+      "pipeAndBackpressureMs": 13.356753000032768,
+      "encoderFlushMs": 75.65799999999945,
+      "exportMs": 15768.00425,
+      "nodePeakRssBytes": 217939968,
+      "memory": {
+        "sampleIntervalMs": 250,
+        "samples": 65,
+        "nodePeakRssBytes": 217939968,
+        "browserPeakRssBytes": 1285980160,
+        "encoderPeakRssBytes": 221560832,
+        "processTreePeakRssBytes": 1518632960,
+        "processTreeAvailable": true
+      },
+      "queue": {
+        "peakFrames": 1,
+        "peakBytes": 82894
+      },
+      "cache": {
+        "enabled": true,
+        "limitBytes": 33554432,
+        "peakBytes": 11940661,
+        "hits": 59,
+        "misses": 156,
+        "screenshots": 156
+      },
+      "source": {
+        "browser": "153.0.8010.50",
+        "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+        "adapterVersion": "turbowarp-7c58de66-a2946eeb-client-1",
+        "locale": "zh-CN",
+        "theme": "light"
+      },
+      "probe": {
+        "frames": 215,
+        "width": 1280,
+        "height": 720,
+        "duration": 7.166667
+      },
+      "throughputFps": 17.68881016013595
+    },
+    {
+      "name": "basic-1080-30",
+      "budgetPassed": true,
+      "keyframeDigest": "6afff2cadf48b77767774406a9b2a24876b6f9632aa361b76a8c0795b115e143",
+      "bundleBytes": 1569,
+      "fps": 30,
+      "frames": 215,
+      "tutorialDuration": 7.1578192940983945,
+      "encodedDuration": 7.166666666666667,
+      "width": 1920,
+      "height": 1080,
+      "concurrency": 1,
+      "encoderThreads": 2,
+      "encoding": {
+        "cpuUserMs": 3783,
+        "cpuSystemMs": 98,
+        "wallMs": 11381
+      },
+      "preparation": [
+        {
+          "assetPreparationMs": 3120.0999999940395,
+          "resources": 180,
+          "resourceContentBytes": 446463
+        }
+      ],
+      "preparationMs": 3625.330417000001,
+      "compositionMs": 13990.971749999964,
+      "compositionWorkerMs": 13990.173118000024,
+      "pipeAndBackpressureMs": 13.647464000008767,
+      "encoderFlushMs": 160.56079199999658,
+      "exportMs": 17816.773625,
+      "nodePeakRssBytes": 247857152,
+      "memory": {
+        "sampleIntervalMs": 250,
+        "samples": 73,
+        "nodePeakRssBytes": 247857152,
+        "browserPeakRssBytes": 1299857408,
+        "encoderPeakRssBytes": 430505984,
+        "processTreePeakRssBytes": 1926676480,
+        "processTreeAvailable": true
+      },
+      "queue": {
+        "peakFrames": 1,
+        "peakBytes": 142468
+      },
+      "cache": {
+        "enabled": true,
+        "limitBytes": 33554432,
+        "peakBytes": 20563268,
+        "hits": 59,
+        "misses": 156,
+        "screenshots": 156
+      },
+      "source": {
+        "browser": "153.0.8010.50",
+        "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+        "adapterVersion": "turbowarp-7c58de66-a2946eeb-client-1",
+        "locale": "zh-CN",
+        "theme": "light"
+      },
+      "probe": {
+        "frames": 215,
+        "width": 1920,
+        "height": 1080,
+        "duration": 7.166667
+      },
+      "throughputFps": 15.367052685243292
+    },
+    {
+      "name": "basic-720-30-c2",
+      "budgetPassed": true,
+      "keyframeDigest": "7a1d7de113a3ae51ad9cbf372570bfe3d8f5b72c74d1e9482e6a342ff91809ad",
+      "bundleBytes": 1569,
+      "fps": 30,
+      "frames": 215,
+      "tutorialDuration": 7.1578192940983945,
+      "encodedDuration": 7.166666666666667,
+      "width": 1280,
+      "height": 720,
+      "concurrency": 2,
+      "encoderThreads": 2,
+      "encoding": {
+        "cpuUserMs": 1988,
+        "cpuSystemMs": 86,
+        "wallMs": 4931
+      },
+      "preparation": [
+        {
+          "assetPreparationMs": 3159.9000000059605,
+          "resources": 180,
+          "resourceContentBytes": 446463
+        },
+        {
+          "assetPreparationMs": 3106.6000000089407,
+          "resources": 180,
+          "resourceContentBytes": 446463
+        }
+      ],
+      "preparationMs": 6848.950417,
+      "compositionMs": 7408.364915000035,
+      "compositionWorkerMs": 14221.257033999995,
+      "pipeAndBackpressureMs": 111.19604499996058,
+      "encoderFlushMs": 108.38445800000045,
+      "exportMs": 14505.015,
+      "nodePeakRssBytes": 233586688,
+      "memory": {
+        "sampleIntervalMs": 250,
+        "samples": 60,
+        "nodePeakRssBytes": 233586688,
+        "browserPeakRssBytes": 1572356096,
+        "encoderPeakRssBytes": 221069312,
+        "processTreePeakRssBytes": 1811578880,
+        "processTreeAvailable": true
+      },
+      "queue": {
+        "peakFrames": 2,
+        "peakBytes": 165705
+      },
+      "cache": {
+        "enabled": true,
+        "limitBytes": 33554432,
+        "peakBytes": 12650384,
+        "hits": 49,
+        "misses": 166,
+        "screenshots": 166
+      },
+      "source": {
+        "browser": "153.0.8010.50",
+        "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+        "adapterVersion": "turbowarp-7c58de66-a2946eeb-client-1",
+        "locale": "zh-CN",
+        "theme": "light"
+      },
+      "probe": {
+        "frames": 215,
+        "width": 1280,
+        "height": 720,
+        "duration": 7.166667
+      },
+      "throughputFps": 29.021248611104493
+    },
+    {
+      "name": "resources-720-15",
+      "budgetPassed": true,
+      "keyframeDigest": "74593c0e003291d6ad56211b2efa5f605a84b56210a78900697cfcbc13b6a815",
+      "bundleBytes": 29129,
+      "fps": 15,
+      "frames": 403,
+      "tutorialDuration": 26.817654550104717,
+      "encodedDuration": 26.866666666666667,
+      "width": 1280,
+      "height": 720,
+      "concurrency": 1,
+      "encoderThreads": 2,
+      "encoding": {
+        "cpuUserMs": 3183,
+        "cpuSystemMs": 69,
+        "wallMs": 18428
+      },
+      "preparation": [
+        {
+          "assetPreparationMs": 7859.399999991059,
+          "resources": 462,
+          "resourceContentBytes": 1101817
+        }
+      ],
+      "preparationMs": 8301.490499999993,
+      "compositionMs": 22190.417041999957,
+      "compositionWorkerMs": 22189.082045000076,
+      "pipeAndBackpressureMs": 75.5300510002271,
+      "encoderFlushMs": 85.15104199999769,
+      "exportMs": 30679.338832999994,
+      "nodePeakRssBytes": 399425536,
+      "memory": {
+        "sampleIntervalMs": 250,
+        "samples": 125,
+        "nodePeakRssBytes": 399425536,
+        "browserPeakRssBytes": 1302839296,
+        "encoderPeakRssBytes": 223526912,
+        "processTreePeakRssBytes": 1700954112,
+        "processTreeAvailable": true
+      },
+      "queue": {
+        "peakFrames": 1,
+        "peakBytes": 92933
+      },
+      "cache": {
+        "enabled": true,
+        "limitBytes": 33554432,
+        "peakBytes": 25715002,
+        "hits": 93,
+        "misses": 310,
+        "screenshots": 310
+      },
+      "source": {
+        "browser": "153.0.8010.50",
+        "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+        "adapterVersion": "turbowarp-7c58de66-a2946eeb-client-1",
+        "locale": "zh-CN",
+        "theme": "light"
+      },
+      "probe": {
+        "frames": 403,
+        "width": 1280,
+        "height": 720,
+        "duration": 26.866667
+      },
+      "throughputFps": 18.16099261393957
+    },
+    {
+      "name": "long-720-15-a",
+      "budgetPassed": true,
+      "keyframeDigest": "5ff7f56ee16481b5f11f07a3ddaf1266cde98f1c41764279db7755e038840dce",
+      "bundleBytes": 21834,
+      "fps": 15,
+      "frames": 2762,
+      "tutorialDuration": 184.08827275052332,
+      "encodedDuration": 184.13333333333333,
+      "width": 1280,
+      "height": 720,
+      "concurrency": 1,
+      "encoderThreads": 2,
+      "encoding": {
+        "cpuUserMs": 21364,
+        "cpuSystemMs": 487,
+        "wallMs": 120621
+      },
+      "preparation": [
+        {
+          "assetPreparationMs": 8786.09999999404,
+          "resources": 520,
+          "resourceContentBytes": 1174541
+        }
+      ],
+      "preparationMs": 9286.120334000007,
+      "compositionMs": 124277.8071069998,
+      "compositionWorkerMs": 124267.83467899938,
+      "pipeAndBackpressureMs": 191.89798199929646,
+      "encoderFlushMs": 84.52549999998882,
+      "exportMs": 133871.39970900002,
+      "nodePeakRssBytes": 271335424,
+      "memory": {
+        "sampleIntervalMs": 250,
+        "samples": 536,
+        "nodePeakRssBytes": 271335424,
+        "browserPeakRssBytes": 1255948288,
+        "encoderPeakRssBytes": 222937088,
+        "processTreePeakRssBytes": 1523777536,
+        "processTreeAvailable": true
+      },
+      "queue": {
+        "peakFrames": 1,
+        "peakBytes": 90469
+      },
+      "cache": {
+        "enabled": true,
+        "limitBytes": 33554432,
+        "peakBytes": 33554365,
+        "hits": 1212,
+        "misses": 1550,
+        "screenshots": 1550
+      },
+      "source": {
+        "browser": "153.0.8010.50",
+        "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+        "adapterVersion": "turbowarp-7c58de66-a2946eeb-client-1",
+        "locale": "zh-CN",
+        "theme": "light"
+      },
+      "probe": {
+        "frames": 2762,
+        "width": 1280,
+        "height": 720,
+        "duration": 184.133333
+      },
+      "throughputFps": 22.22440244396969
+    },
+    {
+      "name": "long-720-15-b",
+      "budgetPassed": true,
+      "keyframeDigest": "5ff7f56ee16481b5f11f07a3ddaf1266cde98f1c41764279db7755e038840dce",
+      "bundleBytes": 21834,
+      "fps": 15,
+      "frames": 2762,
+      "tutorialDuration": 184.08827275052332,
+      "encodedDuration": 184.13333333333333,
+      "width": 1280,
+      "height": 720,
+      "concurrency": 1,
+      "encoderThreads": 2,
+      "encoding": {
+        "cpuUserMs": 24182,
+        "cpuSystemMs": 774,
+        "wallMs": 126978
+      },
+      "preparation": [
+        {
+          "assetPreparationMs": 8789.40000000596,
+          "resources": 520,
+          "resourceContentBytes": 1174541
+        }
+      ],
+      "preparationMs": 9395.393458000006,
+      "compositionMs": 130624.23253800112,
+      "compositionWorkerMs": 130610.97674900087,
+      "pipeAndBackpressureMs": 242.1198730004835,
+      "encoderFlushMs": 94.15225000004284,
+      "exportMs": 140390.254375,
+      "nodePeakRssBytes": 291028992,
+      "memory": {
+        "sampleIntervalMs": 250,
+        "samples": 562,
+        "nodePeakRssBytes": 291028992,
+        "browserPeakRssBytes": 1217773568,
+        "encoderPeakRssBytes": 222199808,
+        "processTreePeakRssBytes": 1538965504,
+        "processTreeAvailable": true
+      },
+      "queue": {
+        "peakFrames": 1,
+        "peakBytes": 90469
+      },
+      "cache": {
+        "enabled": true,
+        "limitBytes": 33554432,
+        "peakBytes": 33554326,
+        "hits": 1212,
+        "misses": 1550,
+        "screenshots": 1550
+      },
+      "source": {
+        "browser": "153.0.8010.50",
+        "fontSha256": "876af2cd4854644e7f3e7feb2f688997fdb3343c6df6693611209c9dfb47ccec",
+        "adapterVersion": "turbowarp-7c58de66-a2946eeb-client-1",
+        "locale": "zh-CN",
+        "theme": "light"
+      },
+      "probe": {
+        "frames": 2762,
+        "width": 1280,
+        "height": 720,
+        "duration": 184.133333
+      },
+      "throughputFps": 21.14462183880377
+    }
+  ],
+  "longRepeatPassed": true
+}

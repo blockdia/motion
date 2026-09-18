@@ -10,9 +10,11 @@
     }
   },
   "dependencies": {
+    "@blockdia-motion/asset-builder": "workspace:*",
+    "@blockdia-motion/authoring": "workspace:*",
     "@blockdia-motion/core": "workspace:*",
     "@blockdia-motion/renderer-browser": "workspace:*",
-    "@blockdia-motion/authoring": "workspace:*",
-    "@blockdia-motion/asset-builder": "workspace:*"
+    "@napi-rs/canvas": "1.0.9",
+    "@resvg/resvg-js": "2.6.2"
   }
 }

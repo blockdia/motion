@@ -51,6 +51,8 @@ export async function createStage(
       signal.throwIfAborted();
       const video = document.createElement('video');
       video.muted = true;
+      // Export reads decoded pixels through canvas; cross-origin media needs an origin-clean load.
+      video.crossOrigin = 'anonymous';
       video.playsInline = true;
       video.preload = 'auto';
       video.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;object-fit:contain';
