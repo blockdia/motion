@@ -52,14 +52,12 @@
       margin: 0;
       font-size: 14px;
     }
-    #status,
     #error {
       max-width: 1244px;
       margin: 0 auto;
       padding: 0 18px;
       overflow-wrap: anywhere;
     }
-    #status:empty,
     #error:empty {
       display: none;
     }
@@ -88,7 +86,6 @@
     </select>
     <p id="description"></p>
   </header>
-  <p id="status" role="status" aria-live="polite"></p>
   <main aria-label="教程预览">
     <iframe id="player" title="教程播放器" allowfullscreen aria-busy="true"></iframe>
   </main>
@@ -96,7 +93,6 @@
   <script type="module">
     const picker = document.querySelector('#tutorial');
     const frame = document.querySelector('#player');
-    const status = document.querySelector('#status');
     const errorBox = document.querySelector('#error');
     const localePicker = document.querySelector('#locale');
     const openPlayer = document.querySelector('#open-player');
@@ -159,7 +155,6 @@
       window.ready = false;
       frame.setAttribute('aria-busy', 'true');
       errorBox.textContent = '';
-      status.textContent = '正在加载教程…';
       const example = Object.hasOwn(examples, picker.value) ? examples[picker.value] : undefined;
       const scene = example?.variants?.[localePicker.value] ?? picker.value;
       localePicker.disabled = !example?.variants;
@@ -167,6 +162,7 @@
         example?.description || '预览指定的已编译教程。';
       const url = new URL('/player/', location.href);
       url.searchParams.set('scene', new URL(scene, location.href).href);
+      if (example?.variants) url.searchParams.set('locale', localePicker.value);
       if (themePreference !== 'system') url.searchParams.set('theme', themePreference);
       openPlayer.href = url.href;
       const locationUrl = new URL(location.href);
@@ -192,7 +188,6 @@
             localePicker.value = child.player.appearance.locale;
             window.ready = true;
             frame.setAttribute('aria-busy', 'false');
-            status.textContent = '';
           } catch (error) {
             failed({ detail: error.message });
           }
@@ -200,7 +195,6 @@
         function failed(event) {
           if (current !== generation) return;
           frame.setAttribute('aria-busy', 'false');
-          status.textContent = '';
           errorBox.textContent = `${event.detail}${example?.command ? '。请运行 ' + example.command : ''}`;
         }
         child.addEventListener('motion-ready', ready, on);

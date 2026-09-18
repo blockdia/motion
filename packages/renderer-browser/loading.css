@@ -1,0 +1,89 @@
+/* Block artwork and animation timing from the pinned TurboWarp GUI loader.
+ * Source and license: THIRD_PARTY_NOTICES.md, licenses/TurboWarp-GPL-3.0.txt.
+ */
+.motion-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 16px;
+  display: grid;
+  place-content: center;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  text-align: center;
+  background: #17181bcc;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+}
+.motion-loading:empty {
+  display: none;
+}
+.motion-loading-blocks {
+  display: block;
+  width: 125px;
+  height: 150px;
+  margin: 0 auto;
+}
+.motion-loading-blocks img {
+  display: block;
+  position: relative;
+  height: 30%;
+  margin-top: -4px;
+}
+.motion-loading-top {
+  animation: motion-loading-top 1.5s ease infinite;
+}
+.motion-loading-middle {
+  animation: motion-loading-middle 1.5s ease infinite;
+}
+.motion-loading-bottom {
+  animation: motion-loading-bottom 1.5s ease infinite;
+}
+@keyframes motion-loading-top {
+  0% {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  33%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes motion-loading-middle {
+  0%,
+  33% {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  66%,
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes motion-loading-bottom {
+  0%,
+  66% {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .motion-loading-blocks img {
+    animation: none;
+  }
+}
+@media (max-height: 300px) {
+  .motion-loading-blocks {
+    width: 84px;
+    height: 100px;
+  }
+}

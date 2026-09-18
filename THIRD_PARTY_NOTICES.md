@@ -8,4 +8,6 @@
 
 - @kensio/pinyinjs 1.7.13，来源 [KensioSoftware/pinyinjs](https://github.com/KensioSoftware/pinyinjs)。代码为 Apache-2.0；随包词典包含 CC-CEDICT（CC BY-SA 4.0）、Unihan、jieba 等来源，具体条款见依赖包的 LICENSE 与 NOTICE。用于教程编译的分词、汉字转拼音及拼音候选反查，版本与完整性记录在 pnpm-lock.yaml。
 
+加载动画复用上述固定版本 TurboWarp GUI 的 `src/components/loader/` 中三块 SVG 素材及 1.5 秒动画时序，文件位于 `packages/renderer-browser/loading/` 与 `loading.css`。
+
 此文件记录素材来源，不变更各上游原有的许可与商标声明。

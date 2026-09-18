@@ -47,6 +47,10 @@ for (const file of scripts) {
 await cp(resolve(root, '.cache/turbowarp/media'), resolve(output, 'media'), { recursive: true });
 await cp(resolve(root, '.cache/catalog/editor.js'), resolve(output, 'editor.js'));
 await cp(resolve(root, 'packages/asset-builder/prepare.js'), resolve(output, 'prepare.js'));
+await cp(resolve(root, 'packages/renderer-browser/loading.css'), resolve(output, 'loading.css'));
+await cp(resolve(root, 'packages/renderer-browser/loading'), resolve(output, 'loading'), {
+  recursive: true,
+});
 await cp(
   resolve(root, 'packages/asset-builder/runtime-entry.js'),
   resolve(output, 'runtime-entry.js'),
@@ -90,10 +94,9 @@ await writeFile(
 );
 await writeFile(
   resolve(output, 'embed.html'),
-  (await readFile(resolve(root, 'apps/player/index.html'), 'utf8')).replace(
-    `content="/artifacts/runtime/${adapterVersion}/"`,
-    'content="./"',
-  ),
+  (await readFile(resolve(root, 'apps/player/index.html'), 'utf8'))
+    .replace(`content="/artifacts/runtime/${adapterVersion}/"`, 'content="./"')
+    .replaceAll('/packages/renderer-browser/', './'),
 );
 
 for (const locale of ['zh-CN', 'en'])

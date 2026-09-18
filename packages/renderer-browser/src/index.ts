@@ -17,6 +17,7 @@ import {
   type RenderOptions,
 } from './dom.js';
 import { createStage } from './stage.js';
+import { showLoading } from './loading.js';
 export type { WorkspaceView, RenderOptions } from './dom.js';
 export type { CursorMotion } from '@blockdia-motion/core';
 export type CursorClickEffect = 'circle' | 'shrink';
@@ -90,7 +91,7 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
   range.disabled = true;
   range.setAttribute('aria-label', '播放时间');
   const output = element('output', footer);
-  const status = element('p', host);
+  const status = element('p', frame);
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
   let compiled: CompiledScene | undefined,
@@ -155,7 +156,11 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
     const controller = new AbortController();
     pending = controller;
     host.setAttribute('aria-busy', 'true');
-    status.textContent = next.tutorial.defaults.locale === 'en' ? 'Preparing…' : '正在准备…';
+    showLoading(
+      status,
+      next.tutorial.defaults.locale === 'en' ? 'Loading tutorial…' : '正在加载教程…',
+      runtime,
+    );
     button.disabled = range.disabled = true;
     const container = element(
       'div',
@@ -456,7 +461,7 @@ export function mountPlayer(host: HTMLElement, input: TutorialBundle, options: P
     pending = controller;
     host.setAttribute('aria-busy', 'true');
     button.disabled = range.disabled = true;
-    status.textContent = next.locale === 'en' ? 'Preparing…' : '正在准备…';
+    showLoading(status, next.locale === 'en' ? 'Loading tutorial…' : '正在加载教程…', runtime);
     try {
       let updated = bundle;
       if (next.locale !== bundle.tutorial.defaults.locale) {

@@ -4,6 +4,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="motion-runtime" content="/artifacts/runtime/turbowarp-7c58de66-a2946eeb-client-1/" />
   <title>Blockdia Motion 播放器</title>
+  <link rel="stylesheet" href="/packages/renderer-browser/loading.css" />
   <style>
     html,
     body {
@@ -207,6 +208,9 @@
       background: #17181bcc;
       color: #fff;
     }
+    #message:not(:empty) {
+      background: #17181b;
+    }
     #player > p:empty,
     #message:empty {
       display: none;
@@ -240,7 +244,39 @@
   <div id="viewport">
     <main id="player" aria-label="教程播放器" aria-busy="true"></main>
   </div>
-  <p id="message" role="status" aria-live="polite">正在加载教程…</p>
+  <p id="message" class="motion-loading" role="status" aria-live="polite">
+    <span class="motion-loading-blocks" aria-hidden="true">
+      <img
+        class="motion-loading-top"
+        src="/packages/renderer-browser/loading/top-block.svg"
+        alt=""
+        draggable="false"
+      />
+      <img
+        class="motion-loading-middle"
+        src="/packages/renderer-browser/loading/middle-block.svg"
+        alt=""
+        draggable="false"
+      />
+      <img
+        class="motion-loading-bottom"
+        src="/packages/renderer-browser/loading/bottom-block.svg"
+        alt=""
+        draggable="false"
+      />
+    </span>
+    <span id="loading-label">正在加载教程…</span>
+  </p>
+  <script>
+    {
+      const locale = new URLSearchParams(location.search).get('locale') ?? navigator.language;
+      const english = locale.toLowerCase().startsWith('en');
+      document.documentElement.lang = english ? 'en' : 'zh-CN';
+      document.querySelector('#loading-label').textContent = english
+        ? 'Loading tutorial…'
+        : '正在加载教程…';
+    }
+  </script>
   <template id="control-template">
     <div id="controls" role="group" aria-label="播放控件">
       <input
@@ -327,7 +363,7 @@
       exitFullscreen: '<path d="M4 9h5V4m11 5h-5V4M9 20v-5H4m11 5v-5h5"/>',
     };
     let player, resize, observer, hideTimer;
-    let english = false;
+    let english = document.documentElement.lang === 'en';
     let controls, progress, playButton, timeOutput, settings, settingsButton, fullscreenButton;
     let scrubbing = false,
       wasPlaying = false;
@@ -687,9 +723,12 @@
       document.body.dataset.theme = bundle.tutorial.defaults.theme;
       document.documentElement.lang = bundle.tutorial.defaults.locale;
       english = bundle.tutorial.defaults.locale === 'en';
+      document.querySelector('#loading-label').textContent = text(
+        '正在加载教程…',
+        'Loading tutorial…',
+      );
       document.title = text('Blockdia Motion 播放器', 'Blockdia Motion Player');
       host.setAttribute('aria-label', text('教程播放器', 'Tutorial player'));
-      message.textContent = '';
       player = window.player = mountPlayer(host, bundle, {
         runtimeUrl,
         resourceBaseUrl: response.url,
@@ -703,6 +742,7 @@
         await player.setOptions({ theme: resolvedTheme(), locale: player.appearance.locale });
       controller.signal.throwIfAborted();
       document.body.dataset.theme = player.appearance.theme;
+      message.textContent = '';
       createControls();
       fit();
       window.ready = true;
