@@ -69,13 +69,13 @@
   <header class="toolbar">
     <label for="tutorial">教程示例</label>
     <select id="tutorial">
-      <option value="/artifacts/playground/tutorial.zh-CN.json">
+      <option value="./artifacts/playground/tutorial.zh-CN.json">
         客户端准备 · 中英文与舞台视频
       </option>
-      <option value="/artifacts/all-api/tutorial.json">全部 API · 底层与交互动画</option>
-      <option value="/artifacts/structural-editing/tutorial.json">常规代码编辑</option>
-      <option value="/artifacts/basic-editing/tutorial.json">基础编辑</option>
-      <option value="/artifacts/targets/tutorial.json">多角色与完整工具箱</option>
+      <option value="./artifacts/all-api/tutorial.json">全部 API · 底层与交互动画</option>
+      <option value="./artifacts/structural-editing/tutorial.json">常规代码编辑</option>
+      <option value="./artifacts/basic-editing/tutorial.json">基础编辑</option>
+      <option value="./artifacts/targets/tutorial.json">多角色与完整工具箱</option>
     </select>
     <button id="reload" type="button">重新加载</button>
     <a id="open-player" target="_blank" rel="noopener">独立播放器</a>
@@ -97,36 +97,41 @@
     const localePicker = document.querySelector('#locale');
     const openPlayer = document.querySelector('#open-player');
     const examples = {
-      '/artifacts/playground/tutorial.zh-CN.json': {
+      './artifacts/playground/tutorial.zh-CN.json': {
         description:
           '拖动或滚轮平移，Control+滚轮缩放；继续播放恢复视角。播放条的设置按钮可调整倍速、主题与鼠标效果。',
         command: 'pnpm build',
         variants: {
-          'zh-CN': '/artifacts/playground/tutorial.zh-CN.json',
-          en: '/artifacts/playground/tutorial.en.json',
+          'zh-CN': './artifacts/playground/tutorial.zh-CN.json',
+          en: './artifacts/playground/tutorial.en.json',
         },
       },
-      '/artifacts/all-api/tutorial.json': {
+      './artifacts/all-api/tutorial.json': {
         description: '底层编辑、工具箱拖动、原生连接阴影、右键菜单、两种删除、自动输入与角色点击。',
         command: 'pnpm example:all-api',
       },
-      '/artifacts/structural-editing/tutorial.json': {
+      './artifacts/structural-editing/tutorial.json': {
         description: '容器连接、拆分与删除、长文本输入、模拟输入法、字段菜单和高亮标注。',
         command: 'pnpm example:structural',
       },
-      '/artifacts/basic-editing/tutorial.json': {
+      './artifacts/basic-editing/tutorial.json': {
         description: '从工具箱拖出积木、连接、修改参数与粘贴。',
         command: 'pnpm example:basic',
       },
-      '/artifacts/targets/tutorial.json': {
+      './artifacts/targets/tutorial.json': {
         description: '切换舞台与角色，浏览各自的完整工具箱和局部数据。',
         command: 'pnpm example:targets',
       },
     };
     const params = new URLSearchParams(location.search);
-    const initialUrl = params.get('scene') || picker.value;
-    if (initialUrl === '/artifacts/playground/tutorial.en.json') {
-      picker.value = '/artifacts/playground/tutorial.zh-CN.json';
+    const requestedScene = params.get('scene') || picker.value;
+    const initialUrl =
+      [...Object.keys(examples), './artifacts/playground/tutorial.en.json'].find(
+        (scene) =>
+          new URL(scene, location.href).href === new URL(requestedScene, location.href).href,
+      ) ?? requestedScene;
+    if (initialUrl === './artifacts/playground/tutorial.en.json') {
+      picker.value = './artifacts/playground/tutorial.zh-CN.json';
       localePicker.value = 'en';
     } else {
       if (![...picker.options].some((option) => option.value === initialUrl))
@@ -160,7 +165,7 @@
       localePicker.disabled = !example?.variants;
       document.querySelector('#description').textContent =
         example?.description || '预览指定的已编译教程。';
-      const url = new URL('/player/', location.href);
+      const url = new URL('./player/', location.href);
       url.searchParams.set('scene', new URL(scene, location.href).href);
       if (example?.variants) url.searchParams.set('locale', localePicker.value);
       if (themePreference !== 'system') url.searchParams.set('theme', themePreference);

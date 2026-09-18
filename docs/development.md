@@ -23,6 +23,20 @@ pnpm preview
 
 `build:packages` 只构建 TypeScript 包，不启动浏览器。`build` 调用 `runtime:build` 并生成全部示例；`runtime:build` 先构建 TypeScript 包，再校验 Blockly/目录构建记录，将浏览器模块、媒体图标、外壳模板和许可复制到 `artifacts/runtime/<adapterVersion>/`。外壳提取器变化时自动重新提取中英文、浅深主题四份模板。修改目录桥接或准备环境前，应先重建对应输入，再执行 `runtime:build`。
 
+## GitHub Pages
+
+```sh
+pnpm build:playground
+pnpm test:playground
+python3 -m http.server 4174 --directory dist/playground
+```
+
+`build:playground` 执行完整 `build` 后整理 `dist/playground/`，包括首页、`player/index.html`、版本化 runtime、全部示例 JSON、舞台视频和 `.nojekyll`。每次构建清理此发布目录，不包含源码 checkout、构建缓存、测试输出或离线视频导出依赖。相对资源路径自动适配域名根目录和 GitHub Pages 仓库子路径，无需设置 base URL。`test:playground` 使用仅能读取发布目录的普通静态服务器，在 `/` 和 `/motion/` 下验证全部示例、语言切换、视频、独立播放器及刷新。
+
+`.github/workflows/deploy-playground.yml` 在推送 `main` 或手动触发时运行，使用 Node 22 系列最新补丁版本、项目固定 pnpm 版本及 Ubuntu 的 Chrome、Python、Java、FFmpeg。它独立 checkout 上述两个 TurboWarp 固定 commit，安装各自 lockfile 的依赖，通过现有 bootstrap 脚本构建运行时，然后构建、验证并上传静态发布目录。无需准备相邻本地仓库。
+
+在仓库 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**，随后推送或手动运行 workflow。部署使用 `github-pages` environment 和 GitHub 自动提供的 token，无需额外部署密钥。自定义教程 `scene` 参数仍按普通 URL 解析；在仓库子路径部署时，自定义绝对路径需包含仓库前缀，或使用完整 URL。
+
 ## 示例与目录发现
 
 作者示例在 `examples/` 中以 TypeScript 维护；JSON 输入等价测试使用 `tests/fixtures/basic-editing.json`。构建生成的播放器资源写入 `artifacts/`。

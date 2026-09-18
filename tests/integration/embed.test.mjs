@@ -392,7 +392,7 @@ test('playground embeds the player, switches language and tutorials and keeps on
     frame = h.page.frames().find((frame) => frame.parentFrame());
     assert.equal(await frame.evaluate(() => window.player.time), 0);
     assert.equal(await h.page.locator('iframe#player').count(), 1);
-    await h.page.locator('#tutorial').selectOption('/artifacts/basic-editing/tutorial.json');
+    await h.page.locator('#tutorial').selectOption('./artifacts/basic-editing/tutorial.json');
     await h.page.waitForFunction(() => window.ready);
     assert.equal(await h.page.locator('#locale').isDisabled(), true);
     assert.equal(await h.page.locator('iframe#player').count(), 1);

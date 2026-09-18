@@ -31,6 +31,8 @@ pnpm format:check
 
 静态部署时复制生成的版本化运行时目录、教程 JSON 和媒体文件，参照 [播放器 API](docs/api.md) 设置 `runtimeUrl` 与 `resourceBaseUrl`。网页默认使用 TurboWarp 风格的系统字体栈，允许指定字体；视频导出必须提供字体文件。
 
+部署完整 playground 可运行 `pnpm build:playground`，发布生成的 `dist/playground/`。页面与资源使用相对路径，支持域名根目录及 `/motion/` 等仓库子路径。仓库已提供 GitHub Pages workflow：在 **Settings → Pages → Build and deployment → Source** 选择 **GitHub Actions**，推送到 `main` 或手动运行 **Deploy playground to GitHub Pages** 即可部署。CI 自动准备固定版本源码、构建依赖及全部示例；详见 [开发与构建](docs/development.md#github-pages)。
+
 独立播放器入口为 `/player/?scene=/artifacts/playground/tutorial.zh-CN.json`，支持 iframe 嵌入。静态部署可直接使用运行时目录中的 `embed.html`，详见 [独立播放器与 iframe 嵌入](docs/embed.md)。
 
 - [教程 API 与播放器](docs/api.md)

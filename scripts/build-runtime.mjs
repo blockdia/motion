@@ -94,9 +94,10 @@ await writeFile(
 );
 await writeFile(
   resolve(output, 'embed.html'),
-  (await readFile(resolve(root, 'apps/player/index.html'), 'utf8'))
-    .replace(`content="/artifacts/runtime/${adapterVersion}/"`, 'content="./"')
-    .replaceAll('/packages/renderer-browser/', './'),
+  (await readFile(resolve(root, 'apps/player/index.html'), 'utf8')).replaceAll(
+    `../artifacts/runtime/${adapterVersion}/`,
+    './',
+  ),
 );
 
 for (const locale of ['zh-CN', 'en'])

@@ -6,6 +6,8 @@
     "preview": "node scripts/serve.mjs",
     "test": "pnpm build:packages && node --test tests/*.test.mjs",
     "build": "pnpm runtime:build && node scripts/playground-examples.mjs",
+    "build:playground": "pnpm build && node scripts/build-playground.mjs",
+    "test:playground": "node --test tests/deployment/playground-pages.test.mjs",
     "typecheck": "tsc -b --pretty false",
     "motion": "node packages/cli/dist/index.js",
     "test:integration": "pnpm runtime:build && node scripts/stage-fixture.mjs && node --test --test-concurrency=1 tests/integration/*.test.mjs",

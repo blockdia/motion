@@ -1,0 +1,93 @@
+name: Deploy playground to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      pages: read
+    env:
+      TURBOWARP_BLOCKS: ${{ github.workspace }}/.cache/source/blocks
+      TURBOWARP_GUI: ${{ github.workspace }}/.cache/source/gui
+      CHROME_PATH: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          check-latest: true
+      - uses: pnpm/action-setup@v6
+        with:
+          cache: true
+      - name: Install system build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg default-jre-headless
+          python3 --version
+          "$CHROME_PATH" --version
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Fetch public Git dependencies over HTTPS
+        run: |
+          git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+          git config --global --add url."https://github.com/".insteadOf git@github.com:
+      - name: Checkout pinned Scratch Blocks
+        uses: actions/checkout@v7
+        with:
+          repository: TurboWarp/scratch-blocks
+          ref: 7c58de666658df1bb447d010132aa3914c10f41e
+          path: .cache/source/blocks
+          persist-credentials: false
+      - name: Install pinned Scratch Blocks dependencies
+        working-directory: .cache/source/blocks
+        run: npm ci --ignore-scripts
+      - name: Checkout pinned Scratch GUI
+        uses: actions/checkout@v7
+        with:
+          repository: TurboWarp/scratch-gui
+          ref: a2946eeb9a9dca7857d7ab53d766b54288c7a2ff
+          path: .cache/source/gui
+          persist-credentials: false
+      - name: Prepare pinned runtime dependencies
+        run: |
+          pnpm bootstrap:blocks
+          pnpm bootstrap:gui
+          pnpm bootstrap:catalog
+      - name: Build static playground
+        run: pnpm build:playground
+      - name: Check static playground at root and repository subpath
+        run: pnpm test:playground
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/playground
+          include-hidden-files: true
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
